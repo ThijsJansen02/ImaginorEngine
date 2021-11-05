@@ -1,0 +1,45 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "platformbuild",
+            "command": "platformbuild.bat",
+            "args": [],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "type": "shell",
+            "label": "platformrun",
+            "command": "run.bat",
+            "args": [],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "type": "shell",
+            "label": "imaginorGLbuild",
+            "command": "imaginorGLbuild.bat",
+            "args": [],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "type": "shell",
+            "label": "enginebuild",
+            "command": "enginebuild.bat",
+            "args": [],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "type": "shell",
+            "label": "consolebuild",
+            "command": "debugconsolebuild.bat",
+            "args": [],
+            "group": "build",
+            "problemMatcher": []
+        }
+    ]
+}

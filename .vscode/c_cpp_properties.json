@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "name": "Win32-windows-debug",
+            "includePath": [
+                "${workspaceFolder}/ImaginorEngine/src/**",
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/ImaginorPlatform/src/**",
+                "${workspaceFolder}/ImaginorMath/src/**",
+                "${workspaceFolder}/ImaginorPlatform/dep/glew-2.1.0/include/**"
+            ],
+            "defines": [
+                "IME_DEBUG",
+                "IME_WINDOWS"
+            ],
+            "windowsSdkVersion": "10.0.18362.0",
+            "compilerPath": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.28.29910/bin/Hostx64/x64/cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64"
+        }
+    ],
+    "version": 4
+}

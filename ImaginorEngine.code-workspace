@@ -1,0 +1,25 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"xiosbase": "cpp",
+			"xutility": "cpp",
+			"initializer_list": "cpp",
+			"type_traits": "cpp",
+			"xstring": "cpp",
+			"iterator": "cpp",
+			"memory": "cpp",
+			"xlocnum": "cpp",
+			"xlocale": "cpp",
+			"algorithm": "cpp",
+			"cstddef": "cpp",
+			"xtr1common": "cpp",
+			"compare": "cpp",
+			"xlocinfo": "cpp"
+		}
+	}
+}
