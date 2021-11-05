@@ -7,7 +7,7 @@
 #include <ImaginorEngine/src/memory.h>
 #include <LinearMath/mat3.h>
 #include <LinearMath/mat4.h>
-#include <stb_image.h>
+#include <stb_image/stb_image.h>
 #include <ImaginorEngine/src/rendering/Renderer2D.h>
 #include "textrenderering.h"
 #include "rendering/RenderQueue.h"

@@ -1,0 +1,3 @@
+[submodule "ImaginorEngine/dep/Entt"]
+	path = ImaginorEngine/dep/Entt
+	url = https://github.com/skypjack/entt.git

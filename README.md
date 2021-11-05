@@ -1,1 +1,3 @@
-this is a game engine
+Imaginor Engine
+
+this is a simple graphics/game engine.
