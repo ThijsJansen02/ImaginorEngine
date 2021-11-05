@@ -836,7 +836,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             IME::win32_destroyApplicationhandle(&app);
             app = IME::win32_loadApplicationhandle();
 
-            //app.init(platforminterface);
+            app.init(platforminterface);
 
             IME::win32_platformPushDebugMessage("triggered dll reload!", IME::IME_WARN);
         }

@@ -19,7 +19,8 @@
 			"cstddef": "cpp",
 			"xtr1common": "cpp",
 			"compare": "cpp",
-			"xlocinfo": "cpp"
+			"xlocinfo": "cpp",
+			"locale": "cpp"
 		}
 	}
 }

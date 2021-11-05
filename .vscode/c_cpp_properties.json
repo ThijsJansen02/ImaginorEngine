@@ -8,7 +8,7 @@
                 "${workspaceFolder}/ImaginorPlatform/src/**",
                 "${workspaceFolder}/ImaginorMath/src/**",
                 "${workspaceFolder}/ImaginorEngine/dep/include",
-                "${workspaceFolder}/ImaginorEngine/dep/Entt/single_include"
+                "${workspaceFolder}/ImaginorEngine/dep/Entt"
                 
                 
             ],

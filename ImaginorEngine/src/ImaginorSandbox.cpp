@@ -1,3 +1,5 @@
+#include "entt/entity/registry.hpp"
+#include "scene/Scene.h"
 
 #include <core.h>
 #include <LinearMath/vec2.h>
@@ -24,6 +26,9 @@ namespace IME
     
     struct ReferencableApplicationState {
         vec3f value;
+
+        Scene scene;
+        entt::entity entity;
     };
 
     struct NonReferenceAbleApplicationState {
@@ -90,10 +95,19 @@ namespace IME
         interface->events.push(e);
     }
 
+    struct Transform {
+        mat4 transform;
+    };
+
     extern "C" IME_APPLICATION_INIT(applicationInit) { //bool32 applicationInit(ApplicationMemory memory, RenderCommands rendercommands)
 
         IME::NonReferenceAbleApplicationState state;
         IME::ApplicationState* stateptr = (IME::ApplicationState*)platform.appmemory.persistentstorage;
+        IME::ReferencableApplicationState* refstate = &stateptr->refstate;
+
+        refstate->scene.registry = entt::registry();
+        refstate->entity = refstate->scene.registry.create();
+
 
         Renderer2D::setBatchRendererData(&state.batchrendererdata);
         Memory::setGlobal(&state.mainmemory);
@@ -183,6 +197,17 @@ namespace IME
         stbi_image_free(decompressed);
         platform.io.debug_releasefilememory(&texturedata);
 
+
+        TransformComponent t;
+        t.transform = EulerTransforms{ vec3f{1.0f, 0.0f, 0.0f}, 4.0f * vec3f{1.0f, 1.0f, 1.0f}, vec3f{0.0f, 0.0f, 0.0f}};
+        refstate->scene.registry.emplace<TransformComponent>(refstate->entity , t);
+
+        SpriteRendererComponent r;
+        r.color = {1.0f, 1.0f, 1.0f, 1.0f};
+        r.shader = state.quadshader;
+        r.texture = state.texture;
+        refstate->scene.registry.emplace<SpriteRendererComponent>(refstate->entity, r);
+
         Event event;
         event.type = IME_DEBUG_MESSAGE;
         event.source = IME_APP;
@@ -199,6 +224,7 @@ namespace IME
 
         ApplicationState* stateptr = (ApplicationState*)platform.appmemory.persistentstorage;
         NonReferenceAbleApplicationState state = ((ApplicationState*)platform.appmemory.persistentstorage)->nonrefstate;
+        IME::ReferencableApplicationState* refstate = &stateptr->refstate;
         Renderer2D::setBatchRendererData(&state.batchrendererdata);
         Memory::setGlobal(&state.mainmemory);
 
@@ -261,6 +287,7 @@ namespace IME
         real32 width = right - left;
         real32 height = top - bottom;
 
+#if 0
         uint32 sqrtnsprites = (uint32)squareRootReal32(stateptr->refstate.value.z);
         for(uint32 y = 0; y < sqrtnsprites; y++) {
             for(uint32 x = 0; x < sqrtnsprites; x++) {
@@ -283,6 +310,9 @@ namespace IME
                 state.renderqueue2D.commands.push_back(command);
             }
         }
+    #endif
+
+        IME::pushSceneToRenderQueue(&refstate->scene, &state.renderqueue2D);
 
         Renderer2D::beginScene(projection * view);
 
