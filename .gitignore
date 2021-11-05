@@ -1,0 +1,12 @@
+*.pdb
+*.exe
+*.dll
+*.obj
+*.exp
+*.ilk
+*.lib
+*.map
+*.imr
+build/**/*.txt
+/.vs
+
