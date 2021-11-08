@@ -182,6 +182,13 @@ namespace IME::OpenGL {
         return openglbufferusegetable[bufferusage];
     }
 
+    extern "C" void ime_glapi_destroy(IME::Canvas* canvas, IME::byte* memory, IME::sizeptr graphicsmemorysize, IME::EventQueue* eventqueue) {
+        
+        
+
+        memset(memory, 0, 1024);
+    }
+
     extern "C" IME_GLAPI_INIT(ime_glapi_init) { //void ime_glapi_init(IME::Canvas* canvas, IME::byte* memory, IME::sizeptr graphicsmemorysize, IME::EventQueue* eventqueue)
 
         memset(memory, 0, 1024);

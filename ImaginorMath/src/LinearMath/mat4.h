@@ -102,7 +102,7 @@ namespace IME {
     {
         real32 width = right - left;
         real32 height = top - bottom;
-        real32 thickness = near - far;
+        real32 thickness = far - near;
 
         real32 middleX = (left + right) / 2.0f;
         real32 middleY = (top + bottom) / 2.0f;

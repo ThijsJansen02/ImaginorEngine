@@ -44,4 +44,8 @@ namespace IME::UI {
     void calculateUiComponentsForWindow(Context* context, const Window& window);
     void drawUiComponents(const Context& context, RenderQueue2D* renderqueue, gl_id shader);
 
+    ElementPtr addParagraph(Context* context, ElementPtr parent, const char* text, const StyleProperties& style);
+    ElementPtr addDiv(Context* context, ElementPtr parent, const StyleProperties& style);
+    ElementPtr addFloatSlider(Context* context, ElementPtr parent, const StyleProperties& style, uint32 nfloats, real32* values, const char* tag);
+
 }

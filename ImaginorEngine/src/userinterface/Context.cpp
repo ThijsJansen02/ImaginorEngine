@@ -7,22 +7,24 @@ namespace IME::UI {
 
     real32 slidervaluesize = 6.0f;
 
-    Bounds addPaddingToBounds(const Bounds& bounds, const Padding& padding) {
+    template<typename T>
+    Bounds addBorderToBounds(const Bounds& bounds, const T& border) {
         Bounds result = bounds;
-        result.top += padding.top;
-        result.left -= padding.left;
-        result.right += padding.right;
-        result.bottom -= padding.bottom;
+        result.top += border.top;
+        result.left -= border.left;
+        result.right += border.right;
+        result.bottom -= border.bottom;
 
         return result;
     }
 
-    Bounds subtractPaddingFromBounds(const Bounds& bounds, const Padding& padding) {
+    template<typename T>
+    Bounds subtractBorderFromBounds(const Bounds& bounds, const T& border) {
         Bounds result = bounds;
-        result.top -= padding.top;
-        result.left += padding.left;
-        result.right -= padding.right;
-        result.bottom += padding.bottom;
+        result.top -= border.top;
+        result.left += border.left;
+        result.right -= border.right;
+        result.bottom += border.bottom;
 
         return result;
     }
@@ -43,6 +45,83 @@ namespace IME::UI {
         IME::vec2f size = sizeOfBounds(bounds);
         return transformMat4(vec3f{center.x, center.y, depth}, vec3f{size.x, size.y, 1.0f});
 
+    }
+
+    ElementPtr addParagraph(Context* context, ElementPtr parent, const char* text, const StyleProperties& style) {
+        Paragraph p;
+        p.parent = parent;
+        p.textlength = strlen(text);
+        p.text = (char*)Memory::alloc(p.textlength + 1);
+        copy((byte*)text, (byte*)p.text, p.textlength + 1);
+
+        //all style related things
+        p.glyphsize = style.glyphsize;
+        p.atlas = style.font;
+        p.linespacing = style.linespacing;
+        p.textcolor = style.textcolor;
+        p.props.background = style.background;
+        p.props.border = style.border;
+        p.props.bordercolor = style.bordercolor;
+        p.props.padding = style.padding;
+        p.props.shader = style.shader;
+        p.props.margin = style.margin;
+
+        ElementPtr result;
+        result.dataptr = context->paragraphs.add(p);
+        result.type = UI_PARAGRAPH;
+        if(parent.type == UI_DIV) {
+            context->divs[parent.dataptr].data.children.push_back(result);
+        }
+        return result;
+    }
+
+    ElementPtr addDiv(Context* context, ElementPtr parent, const StyleProperties& style) {
+        Div div;
+        //all style related things
+        div.props.background = style.background;
+        div.props.border = style.border;
+        div.props.bordercolor = style.bordercolor;
+        div.props.padding = style.padding;
+        div.props.shader = style.shader;
+        div.props.margin = style.margin;
+        div.children = Data::ArrayList_<ElementPtr, Memory::alloc, Memory::dealloc>::create(0);
+
+        ElementPtr result;
+        result.dataptr = context->divs.add(div);
+        result.type = UI_DIV;
+        if(parent.type == UI_DIV) {
+            context->divs[parent.dataptr].data.children.push_back(result);
+        }
+        return result;
+    }
+
+    ElementPtr addFloatSlider(Context* context, ElementPtr parent, const StyleProperties& style, uint32 nfloats, real32* values, const char* tag) {
+        FloatSlider fs;
+
+        fs.value = values;
+        fs.nvalues = nfloats;
+        fs.glyphsize = style.glyphsize;
+        fs.atlas = style.font;
+        
+        fs.taglength = strlen(tag);
+        fs.tag = (char*)Memory::alloc(fs.taglength + 1);
+        copy((byte*)tag, (byte*)fs.tag, fs.taglength + 1);
+
+        //all style related things
+        fs.props.background = style.background;
+        fs.props.border = style.border;
+        fs.props.bordercolor = style.bordercolor;
+        fs.props.padding = style.padding;
+        fs.props.shader = style.shader;
+        fs.props.margin = style.margin;
+
+        ElementPtr result;
+        result.dataptr = context->floatsliders.add(fs);
+        result.type = UI_FLOAT_SLIDER;
+        if(parent.type == UI_DIV) {
+            context->divs[parent.dataptr].data.children.push_back(result);
+        }
+        return result;
     }
 
     Bounds calculateUiComponent(Context* context, ElementPtr element, ElementPtr parent, Bounds maxbounds, real32 depth);
@@ -131,27 +210,24 @@ namespace IME::UI {
         }
     }
 
+    real32 topbarheight = 15.0f;
+
     void calculateUiComponentsForWindow(Context* context, const Window& window) {
         
         real32 depth = 2.0f;
         Div* main = &context->divs[window.rootelement.dataptr].data;
 
-        Bounds bounds;
-        bounds = window.bounds;
-        bounds.topleft.y -= 15.0f;
+        Bounds mainbounds = subtractBorderFromBounds(window.bounds, main->props.margin);
+        mainbounds.top -= topbarheight;
 
-        main->props.contentbounds = subtractPaddingFromBounds(window.bounds, main->props.padding);
+        main->props.contentbounds = subtractBorderFromBounds(mainbounds, main->props.padding);
+        main->props.elementtransform = calcTransformFromBounds(mainbounds, depth);
 
-        vec2f center = centerOfBounds(bounds);
-        vec2f size = sizeOfBounds(bounds);
-        main->props.elementtransform = transformMat4(vec3f{center.x, center.y, depth}, vec3f{size.x, size.y, 1.0f});
-
-        Bounds childspace = subtractPaddingFromBounds(bounds, main->props.padding);
-
+        Bounds childspace = main->props.contentbounds;
         real32 y = 0.0f;
         for(sizeptr i = 0; i < main->children.getCount(); i++) {
             Bounds child = calculateUiComponent(context, main->children[i], window.rootelement, childspace, depth + 1);
-            childspace.topleft = { child.left, child.bottom };
+            childspace.top = child.bottom;
         }
     }
 
@@ -162,13 +238,13 @@ namespace IME::UI {
             Paragraph* p = &context->paragraphs[element.dataptr].data;
             p->parent = parent;
 
-            Bounds maxtextspace = subtractPaddingFromBounds(maxbounds, p->props.padding);
+            Bounds maxtextspace = subtractBorderFromBounds(subtractBorderFromBounds(maxbounds, p->props.padding), p->props.margin);
             vec2f textsize = calculateStringSize(p->text, maxtextspace.right - maxtextspace.left, p->glyphsize, p->linespacing);
 
             p->props.contentbounds = {maxtextspace.topleft, {maxtextspace.topleft.x + textsize.x, maxtextspace.topleft.y - textsize.y}};
             p->props.depth = depth;
 
-            Bounds fullbounds = addPaddingToBounds(p->props.contentbounds, p->props.padding);
+            Bounds fullbounds = addBorderToBounds(p->props.contentbounds, p->props.padding);
             p->props.elementtransform = calcTransformFromBounds(fullbounds, depth);
 
             return fullbounds;
@@ -177,7 +253,7 @@ namespace IME::UI {
         if(element.type == UI_DIV) {
             Div* div = &context->divs[element.dataptr].data;
 
-            Bounds childspace = subtractPaddingFromBounds(maxbounds, div->props.padding);
+            Bounds childspace = subtractBorderFromBounds(subtractBorderFromBounds(maxbounds, div->props.padding), div->props.margin);
             Bounds usedspace = {maxbounds.topleft, maxbounds.topleft};
 
             div->props.depth = depth;
@@ -188,7 +264,7 @@ namespace IME::UI {
                 usedspace.bottomright = { maxReal32(childspace.right, usedspace.right), childspace.top };
             }
 
-            Bounds fullbounds = addPaddingToBounds(usedspace, div->props.padding);
+            Bounds fullbounds = addBorderToBounds(usedspace, div->props.padding);
 
             div->props.elementtransform = calcTransformFromBounds(fullbounds, depth);
             return fullbounds;
@@ -198,12 +274,12 @@ namespace IME::UI {
             
             FloatSlider* fs = &context->floatsliders[element.dataptr].data;
 
-            fs->props.contentbounds = subtractPaddingFromBounds(maxbounds, fs->props.padding);
+            fs->props.contentbounds = subtractBorderFromBounds(subtractBorderFromBounds(maxbounds, fs->props.padding), fs->props.margin);
             fs->props.contentbounds.bottomright.y = fs->props.contentbounds.topleft.y - fs->glyphsize.y;
 
             fs->props.depth = depth;
 
-            Bounds fullbounds = addPaddingToBounds(fs->props.contentbounds, fs->props.padding);
+            Bounds fullbounds = addBorderToBounds(fs->props.contentbounds, fs->props.padding);
             fs->props.elementtransform = calcTransformFromBounds(fullbounds, depth);
 
             return fullbounds;
@@ -214,8 +290,19 @@ namespace IME::UI {
 
         for(Window& window : context.uiwindows) {
 
-            mat4 transform = calcTransformFromBounds(window.bounds, 0.0f);
             RendererCommand2D command;
+
+            Bounds topbar = window.bounds;
+            topbar.bottom = topbar.top - topbarheight;
+
+            mat4 transform = calcTransformFromBounds(topbar, 1.0f);
+            command.shader = shader;
+            command.texture = 0;
+            command.transform = transform;
+            command.color = {0.0f, 0.0f, 1.0f, 1.0f};
+            renderqueue->commands.push_back(command);   
+
+            transform = calcTransformFromBounds(window.bounds, 0.0f);
             command.shader = shader;
             command.texture = 0;
             command.transform = transform;
@@ -277,7 +364,6 @@ namespace IME::UI {
 
                 //calculating space for value
 
-
                 Bounds valuebounds;
                 valuebounds.top = fs->props.contentbounds.top;
                 valuebounds.bottom = fs->props.contentbounds.bottom;
@@ -326,7 +412,7 @@ namespace IME::UI {
         if(element.type == UI::UI_DIV) {
             Div* div = &context->divs[element.dataptr].data;
 
-            if(isInBounds(mousepos, addPaddingToBounds(div->props.contentbounds, div->props.padding))) {
+            if(isInBounds(mousepos, addBorderToBounds(div->props.contentbounds, div->props.padding))) {
                 for(ElementPtr el : div->children) {
                     onMBpressedEvent(el, context, mousepos, e);
                 }
@@ -338,7 +424,7 @@ namespace IME::UI {
 
         if(element.type == UI::UI_FLOAT_SLIDER) {
             FloatSlider* fs = &context->floatsliders[element.dataptr].data;
-            if(isInBounds(mousepos, addPaddingToBounds(fs->props.contentbounds, fs->props.padding))) {
+            if(isInBounds(mousepos, addBorderToBounds(fs->props.contentbounds, fs->props.padding))) {
             
                 Bounds valuebounds;
                 valuebounds.top = fs->props.contentbounds.top;

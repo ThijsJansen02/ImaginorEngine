@@ -34,11 +34,9 @@ namespace IME
     struct NonReferenceAbleApplicationState {
 
         UI::Context uicontext;
-
         TextureAtlas textureatlas;  
 
         real32 time = 0;
-
         Renderer2D::BatchRenderer2DData batchrendererdata;
 
         gl_id textshader;
@@ -101,13 +99,14 @@ namespace IME
 
     extern "C" IME_APPLICATION_INIT(applicationInit) { //bool32 applicationInit(ApplicationMemory memory, RenderCommands rendercommands)
 
-        IME::NonReferenceAbleApplicationState state;
+        IME::NonReferenceAbleApplicationState state = {  };
         IME::ApplicationState* stateptr = (IME::ApplicationState*)platform.appmemory.persistentstorage;
         IME::ReferencableApplicationState* refstate = &stateptr->refstate;
+        IME::NonReferenceAbleApplicationState* nonrefstate = &stateptr->nonrefstate;
+        *refstate = {};
 
         refstate->scene.registry = entt::registry();
         refstate->entity = refstate->scene.registry.create();
-
 
         Renderer2D::setBatchRendererData(&state.batchrendererdata);
         Memory::setGlobal(&state.mainmemory);
@@ -131,52 +130,34 @@ namespace IME
 
         state.uicontext = UI::createContext();
 
-        UI::FloatSlider fs;
-        fs.nvalues = 3;
-        fs.glyphsize = 0.9f * vec2f{10.0f, 15.0f};
-        fs.props.background = {1.0f, 0.0f, 0.0f, 1.0f};
-        fs.props.shader = state.quadshader;
-        fs.tag = "float slider!";
-        fs.textcolor = {0.0f, 0.0f, 0.0f, 1.0f};
-        fs.value = nullptr;
-        fs.props.padding = {5.0f, 5.0f, 5.0f, 5.0f};
-        fs.atlas = &stateptr->nonrefstate.textureatlas;
-        fs.value = &stateptr->refstate.value.x;
-
-        UI::Paragraph p;
-        p.props.padding = {5.0f, 5.0f, 5.0f, 5.0f};
-        p.props.background = {0.0f, 1.0f, 0.0f, 0.0f};
-        p.props.shader = state.quadshader;
-        p.glyphsize = {10.0f, 10.0f};
-        p.linespacing = 1.5f;
-        p.textcolor = {1.0f, 1.0f, 1.0f, 1.0f};
-        //p.text = "bla";
-        p.text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
-        p.textlength = strlen(p.text);
-        p.atlas = &stateptr->nonrefstate.textureatlas;
-        //sizeptr pindex = state.uicontext.paragraphs.add(p);
-        //sizeptr pindex2 = state.uicontext.paragraphs.add(p);
-        sizeptr pindex3 = state.uicontext.paragraphs.add(p);
-        sizeptr fsindex = state.uicontext.floatsliders.add(fs);
-
-        UI::Div main;
-        main.props.padding = {5.0f, 5.0f, 5.0f, 5.0f};
-        main.props.background = {0.1f, 0.1f, 0.1f, 1.0f};
-        main.props.shader = state.quadshader;
-        main.children = Data::ArrayList_<UI::ElementPtr, Memory::alloc, Memory::dealloc>::create(0);
-        //main.children.push_back({UI::UI_PARAGRAPH, pindex});
-        //main.children.push_back({UI::UI_PARAGRAPH, pindex2});
-        main.children.push_back({UI::UI_FLOAT_SLIDER, fsindex});
-        main.children.push_back({UI::UI_PARAGRAPH, pindex3});
+        UI::StyleProperties style;
+        style.background = {1.0, 0.0f, 0.0f, 1.0f};
+        style.padding = {5.0f, 5.0f, 5.0f, 5.0f};
+        style.font = &nonrefstate->textureatlas;
+        style.glyphsize = {10.0f, 15.0f};
+        style.linespacing = {1.0f};
+        style.shader = state.quadshader;
+        style.textcolor = {0.6f, 0.1f, 0.1f, 1.0f};
+        style.margin = {5.0f, 5.0f, 5.0f, 5.0f};
 
         UI::Window uiwindow;
         uiwindow.context = &stateptr->nonrefstate.uicontext;
         uiwindow.bounds.topleft = {200.0f, -200.0f};
         uiwindow.bounds.bottomright = {600.0f, -600.0f};
-        uiwindow.rootelement.dataptr = state.uicontext.divs.add(main);
-        uiwindow.rootelement.type = UI::UI_DIV;
-
+        uiwindow.rootelement = UI::addDiv(&state.uicontext, {UI::UI_WINDOW, 0}, style);
         state.uicontext.uiwindows.push_back(uiwindow);
+
+        style.margin = {0.0f, 0.0f, 0.0f, 0.0f};
+        style.background = {0.5f, 0.5f, 0.5f, 1.0f};
+
+        UI::addParagraph(&state.uicontext, 
+            uiwindow.rootelement, 
+            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+            style);
+
+
+        style.margin.top = 5.0f;
+        UI::addFloatSlider(&state.uicontext, uiwindow.rootelement, style, 3, &refstate->value.x, "float slider");
 
         UI::calculateUiComponents(&state.uicontext);
 
@@ -229,6 +210,8 @@ namespace IME
         Memory::setGlobal(&state.mainmemory);
 
         bool pressedw = false;
+
+        platform.gfx.enable(IME_DEPTH_TEST);
 
         Event event;
         while(platform.events.pop(&event)) {
@@ -321,10 +304,9 @@ namespace IME
         Renderer2D::endScene();
         Renderer2D::flush();
 
-        mat4 uispace = OrthographicMat4(0.0f, (real32)platform.window.width, -(real32)platform.window.height, 0.0f, 100.0f, 0.0f);
+        mat4 uispace = OrthographicMat4(0.0f, (real32)platform.window.width, -(real32)platform.window.height, 0.0f, -100.0f, 100.0f);
 
         real32 y = 0.0f;
-            
         vec2f glyphsize = { 15.0f, 15.0f };
 
         char buffer[256];
@@ -354,7 +336,6 @@ namespace IME
 
         Renderer2D::endScene();
         Renderer2D::flush();
-
 
         ((ApplicationState*)platform.appmemory.persistentstorage)->nonrefstate = state;
         return true;
