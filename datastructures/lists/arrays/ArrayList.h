@@ -98,6 +98,7 @@ namespace IME::Data {
 
         inline T pop_front() {
             --m_Count;
+            IME_DEBUG_ASSERT_BREAK(m_Count >= 0, "array already empty!")
             T result = m_Data[0];
             IME::copy(m_Data + 1, m_Data, count * sizeof(T))
             return result;

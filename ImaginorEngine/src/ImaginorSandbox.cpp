@@ -1,7 +1,5 @@
-#include "entt/entity/registry.hpp"
-#include "scene/Scene.h"
-
 #include <core.h>
+#include <datastructures/ecs/ecs.h>
 #include <LinearMath/vec2.h>
 #include "LinearMath/vec3.h"
 #include <ImaginorPlatform/src/applicationmain.h>
@@ -15,6 +13,8 @@
 #include "rendering/RenderQueue.h"
 #include "userinterface/Window.h"
 #include "userinterface/Context.h"
+#include <typeinfo>
+#include "scene/Components.h"
 
 namespace IME
 {
@@ -26,9 +26,7 @@ namespace IME
     
     struct ReferencableApplicationState {
         vec3f value;
-
-        Scene scene;
-        entt::entity entity;
+        Data::Registry<100, 20, Memory::alloc, Memory::dealloc> sceneregistry;
     };
 
     struct NonReferenceAbleApplicationState {
@@ -97,6 +95,11 @@ namespace IME
         mat4 transform;
     };
 
+    template<typename T>
+    struct Component {
+        T data;
+    };
+
     extern "C" IME_APPLICATION_INIT(applicationInit) { //bool32 applicationInit(ApplicationMemory memory, RenderCommands rendercommands)
 
         IME::NonReferenceAbleApplicationState state = {  };
@@ -104,9 +107,6 @@ namespace IME
         IME::ReferencableApplicationState* refstate = &stateptr->refstate;
         IME::NonReferenceAbleApplicationState* nonrefstate = &stateptr->nonrefstate;
         *refstate = {};
-
-        refstate->scene.registry = entt::registry();
-        refstate->entity = refstate->scene.registry.create();
 
         Renderer2D::setBatchRendererData(&state.batchrendererdata);
         Memory::setGlobal(&state.mainmemory);
@@ -129,6 +129,12 @@ namespace IME
         stateptr->refstate.value = {30000.0f, 1.0f, 10.0f};
 
         state.uicontext = UI::createContext();
+
+        Event event;
+        event.type = IME_DEBUG_MESSAGE;
+        event.source = IME_APP;
+        event.destinations = IME_CONSOLE;
+        event.param1 = IME_WARN;
 
         UI::StyleProperties style;
         style.background = {1.0, 0.0f, 0.0f, 1.0f};
@@ -156,9 +162,8 @@ namespace IME
             style);
 
 
-        style.margin.top = 5.0f;
+        style.margin.top = 30.0f;
         UI::addFloatSlider(&state.uicontext, uiwindow.rootelement, style, 3, &refstate->value.x, "float slider");
-
         UI::calculateUiComponents(&state.uicontext);
 
         Renderer2D::setup(&state.batchrendererdata, 10000, platform.gfx, &state.mainmemory);
@@ -178,18 +183,30 @@ namespace IME
         stbi_image_free(decompressed);
         platform.io.debug_releasefilememory(&texturedata);
 
+        refstate->sceneregistry.init();
+        Data::Entity entity = refstate->sceneregistry.createEntity();
+        Data::Entity entity2 = refstate->sceneregistry.createEntity();
+        Data::Entity entity3 = refstate->sceneregistry.createEntity();
 
-        TransformComponent t;
-        t.transform = EulerTransforms{ vec3f{1.0f, 0.0f, 0.0f}, 4.0f * vec3f{1.0f, 1.0f, 1.0f}, vec3f{0.0f, 0.0f, 0.0f}};
-        refstate->scene.registry.emplace<TransformComponent>(refstate->entity , t);
+        TransformComponent transform;
+        SpriteRendererComponent sprite;
 
-        SpriteRendererComponent r;
-        r.color = {1.0f, 1.0f, 1.0f, 1.0f};
-        r.shader = state.quadshader;
-        r.texture = state.texture;
-        refstate->scene.registry.emplace<SpriteRendererComponent>(refstate->entity, r);
+        sprite.texture = state.texture;
+        sprite.color  = {1.0f, 1.0f, 1.0f, 1.0f};
+        sprite.shader = state.quadshader;
 
-        Event event;
+        transform.transform = transformMat4(vec3f{5.0f, 5.0f, 0.0f}, vec3f{3.0f, 3.0f, 1.0f});
+        refstate->sceneregistry.addComponent<TransformComponent>(entity, transform);
+        refstate->sceneregistry.addComponent<SpriteRendererComponent>(entity, sprite);
+
+        transform.transform = transformMat4(vec3f{-5.0f, 5.0f, 0.0f}, vec3f{3.0f, 3.0f, 1.0f});
+        refstate->sceneregistry.addComponent<TransformComponent>(entity2, transform);
+        refstate->sceneregistry.addComponent<SpriteRendererComponent>(entity2, sprite);
+
+        transform.transform = transformMat4(vec3f{-5.0f, -5.0f, 0.0f}, vec3f{3.0f, 3.0f, 1.0f});
+        refstate->sceneregistry.addComponent<TransformComponent>(entity3, transform);
+        refstate->sceneregistry.addComponent<SpriteRendererComponent>(entity3, sprite);
+
         event.type = IME_DEBUG_MESSAGE;
         event.source = IME_APP;
         event.destinations = IME_CONSOLE;
@@ -293,9 +310,31 @@ namespace IME
                 state.renderqueue2D.commands.push_back(command);
             }
         }
-    #endif
+#endif
 
-        IME::pushSceneToRenderQueue(&refstate->scene, &state.renderqueue2D);
+        refstate->sceneregistry.forEachPair<SpriteRendererComponent, TransformComponent>([](SpriteRendererComponent* spriterenderer, TransformComponent* transform, void* userptr){
+
+            NonReferenceAbleApplicationState* stateptr = (NonReferenceAbleApplicationState*)userptr;
+
+            vec2f texcoords[4] {
+                {0.0f, 0.0f},
+                {1.0f, 0.0f},
+                {1.0f, 1.0f},
+                {0.0f, 1.0f}
+            };
+
+            RendererCommand2D command;
+            command.color = spriterenderer->color;
+            command.shader = spriterenderer->shader;
+            command.texture = spriterenderer->texture;
+
+            for(uint32 i = 0; i < 4; i++) {
+                command.texcoords[i] = texcoords[i];
+            }
+            command.transform = transform->transform;
+            stateptr->renderqueue2D.commands.push_back(command);
+
+        }, &state);
 
         Renderer2D::beginScene(projection * view);
 

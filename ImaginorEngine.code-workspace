@@ -20,7 +20,11 @@
 			"xtr1common": "cpp",
 			"compare": "cpp",
 			"xlocinfo": "cpp",
-			"locale": "cpp"
+			"locale": "cpp",
+			"chrono": "cpp",
+			"utility": "cpp",
+			"xhash": "cpp",
+			"xtree": "cpp"
 		}
 	}
 }

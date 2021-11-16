@@ -1,22 +1,21 @@
+#pragma once
 #include <ImaginorMath/src/LinearMath/linearmath.h>
-#include <ImaginorPlatform/src/imegs.h>
+#include <datastructures/ecs/ecs.h>
 
 namespace IME {
 
-    struct EulerTransforms {
-        vec3f position;
-        vec3f scale;
-        vec3f rotation;
+    struct SpriteRendererComponent {
+        gl_id shader;
+        gl_id texture;
+        vec4f color;
+
+        COMPONENT()
     };
 
     struct TransformComponent {
-        EulerTransforms transform; 
-    };
+        mat4 transform;
 
-    struct SpriteRendererComponent {
-        vec4f color;
-        gl_id texture;
-        gl_id shader;
+        COMPONENT()
     };
 
 

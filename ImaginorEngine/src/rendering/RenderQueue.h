@@ -3,6 +3,7 @@
 #include <ImaginorPlatform/src/imegs.h>
 #include "../memory.h"
 #include "Renderer2D.h"
+#include <ImaginorPlatform/src/platform.h>
 
 namespace IME {
 
@@ -16,6 +17,7 @@ namespace IME {
 
     struct RenderQueue2D {
         Data::ArrayList_<RendererCommand2D, Memory::alloc, Memory::dealloc> commands;
+        gl_id rendertarget;
     };
 
     inline RenderQueue2D 
@@ -24,6 +26,15 @@ namespace IME {
         RenderQueue2D result;
         result.commands = Data::ArrayList_<RendererCommand2D, Memory::alloc, Memory::dealloc>::create(0);
         return result;
+    }
+
+    inline void pushQuadToRQ(RenderQueue2D* renderqueue, gl_id shader, const mat4& transform, const vec4f color) {
+        RendererCommand2D command;
+        command.shader = shader;
+        command.texture = 0;
+        command.transform = transform;
+        command.color = color;
+        renderqueue->commands.push_back(command);
     }
 
     //true is left is larger false is right is larger
@@ -126,7 +137,9 @@ namespace IME {
     }
 
     inline void 
-    flushRenderQueue2D(RenderQueue2D* renderqueue) {
+    flushRenderQueue2D(RenderQueue2D* renderqueue, const PlatformInterface& platform) {
+
+        platform.gfx.fbo_bind(renderqueue->rendertarget);
 
         if(renderqueue->commands.getCount() <= 0) {
             return;

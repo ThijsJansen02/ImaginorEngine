@@ -28,6 +28,9 @@ namespace IME {
         byte* base;
     };
 
+    typedef byte* allocator(sizeptr size);
+    typedef void deallocator(sizeptr size, byte* data);
+
     void *
     pushmemory_(MemoryArena* arena, sizeptr datasize);
 

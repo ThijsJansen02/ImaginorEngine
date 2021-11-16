@@ -214,7 +214,7 @@ namespace IME::UI {
 
     void calculateUiComponentsForWindow(Context* context, const Window& window) {
         
-        real32 depth = 2.0f;
+        real32 depth = 3.0f;
         Div* main = &context->divs[window.rootelement.dataptr].data;
 
         Bounds mainbounds = subtractBorderFromBounds(window.bounds, main->props.margin);
@@ -295,14 +295,14 @@ namespace IME::UI {
             Bounds topbar = window.bounds;
             topbar.bottom = topbar.top - topbarheight;
 
-            mat4 transform = calcTransformFromBounds(topbar, 1.0f);
+            mat4 transform = calcTransformFromBounds(topbar, 2.0f);
             command.shader = shader;
             command.texture = 0;
             command.transform = transform;
             command.color = {0.0f, 0.0f, 1.0f, 1.0f};
             renderqueue->commands.push_back(command);   
 
-            transform = calcTransformFromBounds(window.bounds, 0.0f);
+            transform = calcTransformFromBounds(window.bounds, 1.0f);
             command.shader = shader;
             command.texture = 0;
             command.transform = transform;
