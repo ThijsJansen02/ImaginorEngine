@@ -45,7 +45,6 @@ namespace IME
 
         MemoryPool mainmemory;
         MemoryArena memoryarena;
-
         vec2f camerapos;
     };
 
@@ -338,7 +337,7 @@ namespace IME
 
         Renderer2D::beginScene(projection * view);
 
-        flushRenderQueue2D(&state.renderqueue2D);
+        flushRenderQueue2D(&state.renderqueue2D, platform);
 
         Renderer2D::endScene();
         Renderer2D::flush();
@@ -371,7 +370,7 @@ namespace IME
 
         Renderer2D::beginScene(uispace);
 
-        flushRenderQueue2D(&state.renderqueue2D);
+        flushRenderQueue2D(&state.renderqueue2D, platform);
 
         Renderer2D::endScene();
         Renderer2D::flush();

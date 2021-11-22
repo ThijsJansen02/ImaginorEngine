@@ -320,10 +320,10 @@ namespace IME {
 
         IME::win32_applicationhandle app;
 
-        CopyFileA("ImaginorEngine.dll", "ImaginorEngine_temp.dll", FALSE);
+        CopyFileA("ImaginorEditor.dll", "ImaginorEditor_temp.dll", FALSE);
         app.dllinfo = IME::win32_DEBUGgetFileInfo("ImaginorEngine.dll");
 
-        app.dllname = "ImaginorEngine_temp.dll";
+        app.dllname = "ImaginorEditor_temp.dll";
         app.loadeddll = LoadLibraryA(app.dllname);
         app.init = (IME::application_init*)GetProcAddress(app.loadeddll, "applicationInit");
         app.update = (IME::application_update*)GetProcAddress(app.loadeddll, "applicationUpdate");

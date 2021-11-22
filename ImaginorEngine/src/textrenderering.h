@@ -3,7 +3,7 @@
 #include <core.h>
 #include <ImaginorPlatform/src/platform.h>
 #include <intrinsics.h>
-#include "LinearMath/linearmath.h"
+#include <ImaginorMath/src/LinearMath/linearmath.h>
 #include "rendering/Renderer2D.h"
 #include "rendering/RenderQueue.h"
 

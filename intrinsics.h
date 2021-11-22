@@ -2,6 +2,7 @@
 #include <core.h>
 #include <math.h>
 #include <string.h>
+#include <stdio.h>
 
 namespace IME
 {

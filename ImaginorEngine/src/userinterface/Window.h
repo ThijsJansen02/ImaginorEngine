@@ -1,9 +1,9 @@
 #pragma once
 #include <ImaginorMath/src/LinearMath/linearmath.h>
-#include "src/rendering/RenderQueue.h"
 #include <datastructures/trees/DynamicTree.h>
+#include "../rendering/RenderQueue.h"
+#include "../memory.h"
 #include "Elements.h"
-#include "src/memory.h"
 #include "context.h"
 #include "Bounds.h"
 

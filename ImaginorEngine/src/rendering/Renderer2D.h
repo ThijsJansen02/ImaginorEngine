@@ -1,7 +1,7 @@
 #pragma once
 #include <ImaginorPlatform/src/platform.h>
 #include <core.h>
-#include <LinearMath\linearmath.h>
+#include <ImaginorMath/src/LinearMath/linearmath.h>
 #include <ImaginorEngine\src\memory.h>
 
 #define MAX_TEXTURES 32 

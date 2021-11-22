@@ -9,20 +9,20 @@ set "HH=%dt:~8,2%" & set "Min=%dt:~10,2%" & set "Sec=%dt:~12,2%"
 
 set "fullstamp=%YYYY%-%MM%-%DD%_%HH%-%Min%-%Sec%"
 
-set outputdir=%solutiondir%\bin\windows\debug-x64\ImaginorEngine
-set prjdir=%solutiondir%\ImaginorEngine
+set outputdir=%solutiondir%\bin\windows\debug-x64\ImaginorEditor
+set prjdir=%solutiondir%\ImaginorEditor
 set windowssdk=/I"C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um" /I"C:\Program Files (x86)\Windows Kits\10\include\10.0.19041.0\winrt" /I"C:\Program Files (x86)\Windows Kits\10\include\10.0.19041.0\cppwinrt" /I"C:\Program Files (x86)\Windows Kits\10\include\10.0.19041.0\shared" /I"C:\Program Files (x86)\Windows Kits\10\include\10.0.19041.0\ucrt" /I"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include" /I"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\ATLMFC\include"
-set srcfiles= %prjdir%\src\rendering\Renderer2D.cpp %prjdir%\src\memory.cpp %prjdir%\src\userinterface\Context.cpp %prjdir%\src\userinterface\Window.cpp %prjdir%\src\textrenderering.cpp
-set include=/I%solutiondir% /I%prjdir% /I%solutiondir%\ImaginorMath\src /I%prjdir%\dep\include /I%prjdir%\dep\Entt\src\
-set libfiles= memory.obj Context.obj window.obj textrenderering.obj Renderer2D.obj
+set srcfiles= %prjdir%\src\ImaginorEditor.cpp
+set include=/I%solutiondir% /I%prjdir% /I%prjdir%\dep\
 set defines=/DIME_DEBUG /DIME_DLL_BUILD
-set libs=
-set compilorflags=/c /std:c++17 /Zi /EHsc /MTd
-set linkerflags=/link /MAP /PDB:ImaginorEngine%fullstamp%.pdb  
+set libs=ImaginorEngine.lib
+set compilorflags=/std:c++17 /Zi /MDd /Fe:ImaginorEditor.dll /EHsc
+set linkerflags=/link /EXPORT:applicationUpdate /EXPORT:applicationInit /DLL /MAP /PDB:ImaginorEditor%fullstamp%.pdb  
 
 pushd %outputdir%
 
+copy ..\ImaginorEngine\ImaginorEngine.lib 
 cl %compilorflags% %defines% %include% %windowssdk% %srcfiles% %libs% %linkerflags%
-lib %libfiles% /OUT:ImaginorEngine.lib
+copy ImaginorEditor.dll ..\platform
 
 popd

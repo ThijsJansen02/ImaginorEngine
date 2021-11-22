@@ -3,8 +3,8 @@
 #include <ImaginorMath/src/LinearMath/linearmath.h>
 #include "Bounds.h"
 #include <datastructures/lists/arrays/ArrayList.h>
-#include "src/memory.h"
-#include "src/textrenderering.h"
+#include "../memory.h"
+#include "../textrenderering.h"
 
 namespace IME::UI {
 
