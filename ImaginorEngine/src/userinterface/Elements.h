@@ -44,8 +44,8 @@ namespace IME::UI {
     };
 
     struct StaticElementProperties {
-        real32 width;
-        real32 height;
+        real32 width = 0.0f;
+        real32 height = 0.0f;
         Border border = {0.0f, 0.0f, 0.0f, 0.0f};
         Padding padding = {0.0f, 0.0f, 0.0f, 0.0f}; 
         Margin margin = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -76,6 +76,8 @@ namespace IME::UI {
         vec4f background = {0.0f, 0.0f, 0.0f, 0.0f};
         vec4f bordercolor = {0.0f, 0.0f, 0.0f, 0.0f};
 
+        real32 width = 0.0f;
+        real32 height = 0.0f;
     };
 
 

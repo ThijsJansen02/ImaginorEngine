@@ -4,6 +4,12 @@
 
 namespace IME {
 
+    struct TagComponent {
+        const char* tag;
+
+        COMPONENT()
+    };
+
     struct SpriteRendererComponent {
         gl_id shader;
         gl_id texture;
@@ -17,6 +23,7 @@ namespace IME {
 
         COMPONENT()
     };
+
 
 
 }

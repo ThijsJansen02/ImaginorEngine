@@ -42,7 +42,7 @@ namespace IME::UI {
     void updateUi(Context* context, const PlatformInterface& platform);
     void calculateUiComponents(Context* context);
     void calculateUiComponentsForWindow(Context* context, const Window& window);
-    void drawUiComponents(const Context& context, RenderQueue2D* renderqueue, gl_id shader);
+    void pushElementsToRQ(const Context& context, RenderQueue2D* renderqueue, gl_id shader);
 
     ElementPtr addParagraph(Context* context, ElementPtr parent, const char* text, const StyleProperties& style);
     ElementPtr addDiv(Context* context, ElementPtr parent, const StyleProperties& style);

@@ -21,10 +21,11 @@ namespace IME {
     };
 
     inline RenderQueue2D 
-    createRenderQueue2D() {
+    createRenderQueue2D(gl_id rendertarget) {
 
         RenderQueue2D result;
         result.commands = Data::ArrayList_<RendererCommand2D, Memory::alloc, Memory::dealloc>::create(0);
+        result.rendertarget = rendertarget;
         return result;
     }
 

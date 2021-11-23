@@ -43,7 +43,7 @@ namespace IME::Data {
         struct ComponentData {
 
             Comp component;
-            uint32 entityindex;
+            Entity entity;
             bool32 used;
         };
 
@@ -64,7 +64,7 @@ namespace IME::Data {
             for(uint32 i = 0; i < storage1->count; i++) {
                 ComponentData<Comp1>* current1 = &data1[i];
                 if(current1->used) {
-                    uint32 component2index = map.getStorageLocation(current1->entityindex, Comp2::comp_index());
+                    uint32 component2index = map.getStorageLocation(current1->entity.index, Comp2::comp_index());
                     if(component2index == 0xFFFFFFFF) {continue;}
 
                     ComponentData<Comp2>* current2 = &data2[component2index];
@@ -100,8 +100,8 @@ namespace IME::Data {
         struct View {
             struct iterator {
                 iterator(ComponentData<Comp>* ptr) : m_Ptr(ptr) {}
-                Comp& operator*() {
-                    return m_Ptr->component;
+                std::pair<Comp&, Entity&> operator*() {
+                    return std::pair<Comp&, Entity&>{m_Ptr->component, m_Ptr->entity};
                 }
 
                 bool32 operator==(iterator other) {
@@ -153,7 +153,9 @@ namespace IME::Data {
         template<typename Comp>
         void addComponent(Entity entity, const Comp& component) {
             uint32 index = component.comp_index();
-            ComponentStorage* storage = &this->components[Comp::comp_index()];
+            IME_DEBUG_ASSERT_BREAK(index < n_components, "this index is not supported!")
+
+            ComponentStorage* storage = &this->components[index];
 
             if(storage->count == storage->firstopenspot) {
                 storage->count++;

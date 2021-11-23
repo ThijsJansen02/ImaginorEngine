@@ -65,6 +65,7 @@ namespace IME::UI {
         p.props.padding = style.padding;
         p.props.shader = style.shader;
         p.props.margin = style.margin;
+        p.props.width = style.width;
 
         ElementPtr result;
         result.dataptr = context->paragraphs.add(p);
@@ -85,6 +86,7 @@ namespace IME::UI {
         div.props.shader = style.shader;
         div.props.margin = style.margin;
         div.children = Data::ArrayList_<ElementPtr, Memory::alloc, Memory::dealloc>::create(0);
+        div.props.width = style.width;
 
         ElementPtr result;
         result.dataptr = context->divs.add(div);
@@ -114,6 +116,7 @@ namespace IME::UI {
         fs.props.padding = style.padding;
         fs.props.shader = style.shader;
         fs.props.margin = style.margin;
+        fs.props.width = style.width;
 
         ElementPtr result;
         result.dataptr = context->floatsliders.add(fs);
@@ -245,6 +248,12 @@ namespace IME::UI {
             p->props.depth = depth;
 
             Bounds fullbounds = addBorderToBounds(p->props.contentbounds, p->props.padding);
+
+            if(p->props.width != 0.0f) {
+                real32 width = maxbounds.right - maxbounds.left;
+                fullbounds.right = fullbounds.left + width * (p->props.width / 100.0f) - p->props.margin.right;
+            }
+
             p->props.elementtransform = calcTransformFromBounds(fullbounds, depth);
 
             return fullbounds;
@@ -266,6 +275,11 @@ namespace IME::UI {
 
             Bounds fullbounds = addBorderToBounds(usedspace, div->props.padding);
 
+            if(div->props.width != 0.0f) {
+                real32 width = maxbounds.right - maxbounds.left;
+                fullbounds.right = fullbounds.left + width * (div->props.width / 100.0f) - div->props.margin.right;
+            }
+
             div->props.elementtransform = calcTransformFromBounds(fullbounds, depth);
             return fullbounds;
         }
@@ -280,13 +294,19 @@ namespace IME::UI {
             fs->props.depth = depth;
 
             Bounds fullbounds = addBorderToBounds(fs->props.contentbounds, fs->props.padding);
+
+            if(fs->props.width != 0.0f) {
+                real32 width = maxbounds.right - maxbounds.left;
+                fullbounds.right = fullbounds.left + width * (fs->props.width / 100.0f) - fs->props.margin.right;
+            }
+
             fs->props.elementtransform = calcTransformFromBounds(fullbounds, depth);
 
             return fullbounds;
         }
     }
 
-    void drawUiComponents(const Context& context, RenderQueue2D* renderqueue, gl_id shader) {
+    void pushElementsToRQ(const Context& context, RenderQueue2D* renderqueue, gl_id shader) {
 
         for(Window& window : context.uiwindows) {
 

@@ -136,7 +136,7 @@ namespace IME
         event.param1 = IME_WARN;
 
         UI::StyleProperties style;
-        style.background = {1.0, 0.0f, 0.0f, 1.0f};
+        style.background = {0.3, 0.3f, 0.3f, 1.0f};
         style.padding = {5.0f, 5.0f, 5.0f, 5.0f};
         style.font = &nonrefstate->textureatlas;
         style.glyphsize = {10.0f, 15.0f};
