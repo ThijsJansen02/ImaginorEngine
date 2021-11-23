@@ -9,6 +9,7 @@
 namespace IME::UI {
 
     typedef uint32 gl_id;
+    struct Context;
 
     enum elementtype {
         UI_PARAGRAPH,
@@ -21,6 +22,10 @@ namespace IME::UI {
         elementtype type;
         sizeptr dataptr;
     };
+
+    typedef bool32 onClickCallback(char* id, ElementPtr element, Context* context, void* userptr, Event e);
+    typedef bool32 onHoverCallback(char* id, ElementPtr element, Context* context, void* userptr, Event e);
+    typedef bool32 ofHoverCallback(char* id, ElementPtr element, Context* context, void* userptr, Event e);
 
     struct Padding {
         real32 left;
@@ -44,6 +49,7 @@ namespace IME::UI {
     };
 
     struct StaticElementProperties {
+
         real32 width = 0.0f;
         real32 height = 0.0f;
         Border border = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -58,7 +64,18 @@ namespace IME::UI {
 
         mat4 elementtransform;
         Bounds contentbounds;
+
+        char* id;
+        char* tags;
+
+        bool32 hovered = false;
+
+        onClickCallback* onclick = nullptr;
+        onHoverCallback* onHover = nullptr;
+        ofHoverCallback* ofHover = nullptr;
     };
+
+
 
     struct StyleProperties {
 

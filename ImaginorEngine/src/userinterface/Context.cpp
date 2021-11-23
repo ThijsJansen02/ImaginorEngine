@@ -127,6 +127,61 @@ namespace IME::UI {
         return result;
     }
 
+    bool32 addOnClickToElement(ElementPtr elptr, Context* context, onClickCallback* callback) {
+        if(elptr.type == UI_PARAGRAPH) {
+            Paragraph* el = &context->paragraphs[elptr.dataptr].data;
+            el->props.onclick = callback;
+            return true;
+        }
+        if(elptr.type == UI_FLOAT_SLIDER) {
+            FloatSlider* el = &context->floatsliders[elptr.dataptr].data;
+            el->props.onclick = callback;
+            return true;
+        }
+        if(elptr.type == UI_DIV) {
+            Div* el = &context->divs[elptr.dataptr].data;
+            el->props.onclick = callback;
+            return true;
+        }
+    }
+
+    bool32 addOnHoverToElement(ElementPtr elptr, Context* context, onHoverCallback* callback) {
+        if(elptr.type == UI_PARAGRAPH) {
+            Paragraph* el = &context->paragraphs[elptr.dataptr].data;
+            el->props.onHover = callback;
+            return true;
+        }
+        if(elptr.type == UI_FLOAT_SLIDER) {
+            FloatSlider* el = &context->floatsliders[elptr.dataptr].data;
+            el->props.onHover = callback;
+            return true;
+        }
+        if(elptr.type == UI_DIV) {
+            Div* el = &context->divs[elptr.dataptr].data;
+            el->props.onHover = callback;
+            return true;
+        }
+        return false;
+    }
+
+    bool32 addOfHoverToElement(ElementPtr elptr, Context* context, ofHoverCallback* callback) {
+        if(elptr.type == UI_PARAGRAPH) {
+            Paragraph* el = &context->paragraphs[elptr.dataptr].data;
+            el->props.ofHover = callback;
+            return true;
+        }
+        if(elptr.type == UI_FLOAT_SLIDER) {
+            FloatSlider* el = &context->floatsliders[elptr.dataptr].data;
+            el->props.ofHover = callback;
+            return true;
+        }
+        if(elptr.type == UI_DIV) {
+            Div* el = &context->divs[elptr.dataptr].data;
+            el->props.ofHover = callback;
+            return true;
+        }
+    }
+
     Bounds calculateUiComponent(Context* context, ElementPtr element, ElementPtr parent, Bounds maxbounds, real32 depth);
 
     inline vec2f 
@@ -139,6 +194,7 @@ namespace IME::UI {
         return test.x > topleft.x && test.x < bottomright.x && test.y < topleft.y && test.y > bottomright.y;
     }
 
+    IME::bool32 onMouseMovedEvent(ElementPtr element, Context* context, vec2f mousepos, Event e);
     IME::bool32 onMBpressedEvent(ElementPtr element, Context* context, vec2f mousepos, Event e);
 
     global_var real32 barheight_ = 15.0f;
@@ -147,7 +203,7 @@ namespace IME::UI {
         IME::vec2f buttonbounds = {5.0f, -5.0f};
         if(e.type == IME_MOUSE_BUTTON_PRESSED) {
 
-             IME::vec2f mousepos = mouseSpaceToUispace(platform.mouse.relativemousepos);
+            IME::vec2f mousepos = mouseSpaceToUispace(platform.mouse.relativemousepos);
 
             if(e.param1 == IME_LEFT_MB) {
 
@@ -176,6 +232,17 @@ namespace IME::UI {
                 }
             }
         }
+
+        if(e.type == IME_MOUSE_MOVED) {
+            IME::vec2f mousepos = mouseSpaceToUispace(platform.mouse.relativemousepos);
+
+            for(const Window& window : context->uiwindows) {
+                if (isInBounds(mousepos, window.bounds)) {
+                    onMouseMovedEvent(window.rootelement, context, mousepos, e);
+                }
+            }
+        }
+
         if(e.type == IME_MOUSE_BUTTON_RELEASED) {
             IME::vec2f mousepos = mouseSpaceToUispace(platform.mouse.relativemousepos);
             if(e.param1 == IME_LEFT_MB) {
@@ -252,6 +319,7 @@ namespace IME::UI {
             if(p->props.width != 0.0f) {
                 real32 width = maxbounds.right - maxbounds.left;
                 fullbounds.right = fullbounds.left + width * (p->props.width / 100.0f) - p->props.margin.right;
+                p->props.contentbounds = subtractBorderFromBounds(fullbounds, p->props.padding);
             }
 
             p->props.elementtransform = calcTransformFromBounds(fullbounds, depth);
@@ -427,12 +495,81 @@ namespace IME::UI {
         }
     }
 
+    IME::bool32 onMouseMovedEvent(ElementPtr element, Context* context, vec2f mousepos, Event e) {
+
+        if(element.type == UI::UI_DIV) {
+            Div* el = &context->divs[element.dataptr].data;
+
+            if(isInBounds(mousepos, addBorderToBounds(el->props.contentbounds, el->props.padding))) {
+                if(el->props.onHover && el->props.hovered == false) {
+                    el->props.onHover(el->props.id, element, context, context->userptr, e);
+                    el->props.hovered = true;
+
+                }
+                for(ElementPtr el : el->children) {
+                    onMouseMovedEvent(el, context, mousepos, e);
+                }
+                return true;
+            } else {
+                if(el->props.ofHover && (bool)el->props.hovered == true) {
+                    el->props.ofHover(el->props.id, element, context, context->userptr, e);
+                    el->props.hovered = false;
+                }
+                return true;
+            }
+        }
+
+        if(element.type == UI::UI_PARAGRAPH) {
+            Paragraph* el = &context->paragraphs[element.dataptr].data;
+
+            if(isInBounds(mousepos, addBorderToBounds(el->props.contentbounds, el->props.padding))) {
+                if(el->props.onHover && (bool)el->props.hovered == false) {
+                    el->props.onHover(el->props.id, element, context, context->userptr, e);
+                    el->props.hovered = true;
+
+                }
+                return true;
+            } else {
+                if(el->props.ofHover && (bool)el->props.hovered == true) {
+                    el->props.ofHover(el->props.id, element, context, context->userptr, e);
+                    el->props.hovered = false;
+                }
+                return true;
+            }
+        }
+
+        if(element.type == UI::UI_FLOAT_SLIDER) {
+            FloatSlider* el = &context->floatsliders[element.dataptr].data;
+
+            if(isInBounds(mousepos, addBorderToBounds(el->props.contentbounds, el->props.padding))) {
+                if(el->props.onHover && el->props.hovered == false) {
+                    el->props.onHover(el->props.id, element, context, context->userptr, e);
+                    el->props.hovered = true;
+
+                }
+                return true;
+            } else {
+                if(el->props.ofHover && el->props.hovered == true) {
+                    el->props.ofHover(el->props.id, element, context, context->userptr, e);
+                    el->props.hovered = false;
+                }
+                return true;
+            }
+        }
+
+    }
+
     IME::bool32 onMBpressedEvent(ElementPtr element, Context* context, vec2f mousepos, Event e) {
 
         if(element.type == UI::UI_DIV) {
             Div* div = &context->divs[element.dataptr].data;
 
             if(isInBounds(mousepos, addBorderToBounds(div->props.contentbounds, div->props.padding))) {
+
+                if(div->props.onclick) {
+                    div->props.onclick(div->props.id, element, context, context->userptr, e);
+                }
+
                 for(ElementPtr el : div->children) {
                     onMBpressedEvent(el, context, mousepos, e);
                 }
@@ -469,8 +606,17 @@ namespace IME::UI {
                         }
                     }
                 }
-
-                
+                if(fs->props.onclick) {
+                    fs->props.onclick(fs->props.id, element, context, context->userptr, e);
+                }
+            }
+        }
+        if(element.type == UI::UI_PARAGRAPH) {
+            Paragraph* p = &context->paragraphs[element.dataptr].data;
+            if(isInBounds(mousepos, addBorderToBounds(p->props.contentbounds, p->props.padding))) {
+                if(p->props.onclick) {
+                    p->props.onclick(p->props.id, element, context, context->userptr, e);
+                }
             }
         }
         return false;

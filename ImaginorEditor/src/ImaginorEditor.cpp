@@ -76,6 +76,26 @@ namespace IME
         CacheableState cachestate;
     };
 
+    bool32 onClick(char* id, UI::ElementPtr element, UI::Context* context, void* userptr, Event e) {
+
+        return false;
+
+    }
+    bool32 onHoverEntity(char* id, UI::ElementPtr element, UI::Context* context, void* userptr, Event e) {
+
+        UI::Paragraph& p = context->paragraphs[element.dataptr].data;
+        p.props.background = {0.2f, 0.2f, 0.2f, 1.0f};
+        return false;
+
+    }
+
+    bool32 ofHoverEntity(char* id, UI::ElementPtr element, UI::Context* context, void* userptr, Event e) {
+
+        UI::Paragraph& p = context->paragraphs[element.dataptr].data;
+        p.props.background = {0.3f, 0.3f, 0.3f, 1.0f};
+        return false;
+    }
+
     internal void 
     setupSceneView(UI::Context* context, SceneRegistry* sceneregistry, UI::StyleProperties style) {
         
@@ -86,12 +106,15 @@ namespace IME
         context->uiwindows.push_back(window);
 
         style.background = {0.3f, 0.3f, 0.3f, 1.0f};
+        style.textcolor = {0.8f, 0.8f, 0.8f, 1.0f};
         style.margin = {0.0f, 0.0f, 0.0f, 0.0f};
         style.margin.bottom = 5.0f;
         style.width = 100.0f;
 
         for(auto [tag, entity] : sceneregistry->view<TagComponent>()) {
-            UI::addParagraph(context, window.rootelement, tag.tag, style);
+            UI::ElementPtr el = UI::addParagraph(context, window.rootelement, tag.tag, style);
+            UI::addOnHoverToElement(el, context, onHoverEntity);
+            UI::addOfHoverToElement(el, context, ofHoverEntity);
         }
     }
 
