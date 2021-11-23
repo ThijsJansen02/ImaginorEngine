@@ -49,8 +49,11 @@ namespace IME::UI {
     bool32 addOnHoverToElement(ElementPtr elptr, Context* context, onHoverCallback* callback);
     bool32 addOfHoverToElement(ElementPtr elptr, Context* context, ofHoverCallback* callback);
 
+    ElementPtr addParagraph(Context* context, ElementPtr parent, const char* text, const StyleProperties& style, const char* id);
     ElementPtr addParagraph(Context* context, ElementPtr parent, const char* text, const StyleProperties& style);
+    ElementPtr addDiv(Context* context, ElementPtr parent, const StyleProperties& style, const char* id);
     ElementPtr addDiv(Context* context, ElementPtr parent, const StyleProperties& style);
+    ElementPtr addFloatSlider(Context* context, ElementPtr parent, const StyleProperties& style, uint32 nfloats, real32* values, const char* tag, const char* id);
     ElementPtr addFloatSlider(Context* context, ElementPtr parent, const StyleProperties& style, uint32 nfloats, real32* values, const char* tag);
 
 }

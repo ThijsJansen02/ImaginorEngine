@@ -7,10 +7,10 @@
 #include <ImaginorEngine/src/Imaginor.h>
 #include <ImaginorEngine/src/scene/Components.h>
 #include <intrinsics.h>
+#include <ImaginorEngine/src/functionality.h>
 
-namespace IME
+namespace IME::Editor
 {
-
     internal void 
     setTextureBindings(const char* formatstring, RenderCommands rendercommands) {
         char buffer[256];
@@ -19,7 +19,6 @@ namespace IME
             rendercommands.shader_settexturebinding(buffer, i);
         }
     }
-
 
     internal IME::mat4 
     calcLineSpaceMat4(const vec3f& p1, const vec3f& p2, real32 thickness) {
@@ -72,12 +71,20 @@ namespace IME
         
         UI::Context uicontext;
         SceneRegistry sceneregistry;
+        Data::Entity selectedentity = {0xFFFFFFFF};
         TextureAtlas font;
         CacheableState cachestate;
     };
 
     bool32 onClick(char* id, UI::ElementPtr element, UI::Context* context, void* userptr, Event e) {
 
+        EditorState* stateptr = (EditorState*)userptr;
+
+        uint32 entityid = (uint32)atoi(id);
+        stateptr->selectedentity = {entityid};
+
+        UI::Paragraph& p = context->paragraphs[element.dataptr].data;
+        p.props.background = {0.6f, 0.0f, 0.0f, 1.0f};
         return false;
 
     }
@@ -112,9 +119,14 @@ namespace IME
         style.width = 100.0f;
 
         for(auto [tag, entity] : sceneregistry->view<TagComponent>()) {
-            UI::ElementPtr el = UI::addParagraph(context, window.rootelement, tag.tag, style);
+
+            char buffer[32];
+            sprintf_s(buffer, 32, "%d", entity.index);
+
+            UI::ElementPtr el = UI::addParagraph(context, window.rootelement, tag.tag, style, buffer);
             UI::addOnHoverToElement(el, context, onHoverEntity);
             UI::addOfHoverToElement(el, context, ofHoverEntity);
+            UI::addOnClickToElement(el, context, onClick);
         }
     }
 
@@ -136,13 +148,6 @@ namespace IME
 
         }, rq);
     } 
-
-    char* copyString(const char* other) {
-        sizeptr len = strlen(other) + 1;
-        char* result = (char*)Memory::alloc(len);
-        copy((byte*)other, (byte*)result, len);
-        return result;
-    }
 
     extern "C" IME_APPLICATION_INIT(applicationInit) { //bool32 applicationInit(ApplicationMemory memory, RenderCommands rendercommands)
 
@@ -187,7 +192,20 @@ namespace IME
         stateptr->sceneregistry.addComponent<TransformComponent>(state.entity1, tc);
         stateptr->sceneregistry.addComponent<SpriteRendererComponent>(state.entity1, sc);
 
+        Data::Entity entity2 = stateptr->sceneregistry.createEntity();
+
+        tag.tag = copyString("Entity(2)");
+        tc.transform = transformMat4<real32>({0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f});
+        sc.shader = state.quadshader;
+        sc.texture = 0;
+        sc.color = {1.0f, 0.0f, 1.0f, 1.0f};
+
+        stateptr->sceneregistry.addComponent<TagComponent>(entity2, tag);
+        stateptr->sceneregistry.addComponent<TransformComponent>(entity2, tc);
+        stateptr->sceneregistry.addComponent<SpriteRendererComponent>(entity2, sc);
+
         stateptr->uicontext = UI::createContext();
+        stateptr->uicontext.userptr = stateptr;
         setupSceneView(&stateptr->uicontext, &stateptr->sceneregistry, style);
         UI::calculateUiComponents(&stateptr->uicontext);
 

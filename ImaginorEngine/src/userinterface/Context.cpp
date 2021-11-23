@@ -2,6 +2,7 @@
 #include "Window.h"
 #include <stdio.h>
 #include "src/textrenderering.h"
+#include "../functionality.h"
 
 namespace IME::UI {
 
@@ -47,12 +48,14 @@ namespace IME::UI {
 
     }
 
-    ElementPtr addParagraph(Context* context, ElementPtr parent, const char* text, const StyleProperties& style) {
+    ElementPtr addParagraph(Context* context, ElementPtr parent, const char* text, const StyleProperties& style, const char* id) {
         Paragraph p;
         p.parent = parent;
         p.textlength = strlen(text);
         p.text = (char*)Memory::alloc(p.textlength + 1);
         copy((byte*)text, (byte*)p.text, p.textlength + 1);
+
+        p.props.id = IME::copyString(id);
 
         //all style related things
         p.glyphsize = style.glyphsize;
@@ -76,7 +79,11 @@ namespace IME::UI {
         return result;
     }
 
-    ElementPtr addDiv(Context* context, ElementPtr parent, const StyleProperties& style) {
+    ElementPtr addParagraph(Context* context, ElementPtr parent, const char* text, const StyleProperties& style) {
+        return addParagraph(context, parent, text, style, "");
+    }
+
+    ElementPtr addDiv(Context* context, ElementPtr parent, const StyleProperties& style, const char* id) {
         Div div;
         //all style related things
         div.props.background = style.background;
@@ -88,6 +95,8 @@ namespace IME::UI {
         div.children = Data::ArrayList_<ElementPtr, Memory::alloc, Memory::dealloc>::create(0);
         div.props.width = style.width;
 
+        div.props.id = IME::copyString(id);
+
         ElementPtr result;
         result.dataptr = context->divs.add(div);
         result.type = UI_DIV;
@@ -97,7 +106,11 @@ namespace IME::UI {
         return result;
     }
 
-    ElementPtr addFloatSlider(Context* context, ElementPtr parent, const StyleProperties& style, uint32 nfloats, real32* values, const char* tag) {
+    ElementPtr addDiv(Context* context, ElementPtr parent, const StyleProperties& style) {
+        return addDiv(context, parent, style, "");
+    }
+
+    ElementPtr addFloatSlider(Context* context, ElementPtr parent, const StyleProperties& style, uint32 nfloats, real32* values, const char* tag, const char* id) {
         FloatSlider fs;
 
         fs.value = values;
@@ -118,6 +131,8 @@ namespace IME::UI {
         fs.props.margin = style.margin;
         fs.props.width = style.width;
 
+        fs.props.id = copyString(id);
+
         ElementPtr result;
         result.dataptr = context->floatsliders.add(fs);
         result.type = UI_FLOAT_SLIDER;
@@ -125,6 +140,10 @@ namespace IME::UI {
             context->divs[parent.dataptr].data.children.push_back(result);
         }
         return result;
+    }
+
+    ElementPtr addFloatSlider(Context* context, ElementPtr parent, const StyleProperties& style, uint32 nfloats, real32* values, const char* tag) {
+        return addFloatSlider(context, parent, style, nfloats, values, tag, "");
     }
 
     bool32 addOnClickToElement(ElementPtr elptr, Context* context, onClickCallback* callback) {
@@ -523,7 +542,7 @@ namespace IME::UI {
             Paragraph* el = &context->paragraphs[element.dataptr].data;
 
             if(isInBounds(mousepos, addBorderToBounds(el->props.contentbounds, el->props.padding))) {
-                if(el->props.onHover && (bool)el->props.hovered == false) {
+                    if(el->props.onHover && (bool)el->props.hovered == false) {
                     el->props.onHover(el->props.id, element, context, context->userptr, e);
                     el->props.hovered = true;
 
