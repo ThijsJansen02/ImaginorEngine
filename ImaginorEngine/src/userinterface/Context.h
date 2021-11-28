@@ -18,8 +18,8 @@ namespace IME::UI {
         UiElementList<Paragraph> paragraphs;
         UiElementList<Div> divs;
         UiElementList<FloatSlider> floatsliders;
+        UiElementList<Window> uiwindows;
 
-        Data::ArrayList_<Window, Memory::alloc, Memory::dealloc> uiwindows;
         uint32 selectedWindowptr;
 
         vec2f mouseslideorigin;
@@ -48,6 +48,8 @@ namespace IME::UI {
     bool32 addOnClickToElement(ElementPtr elptr, Context* context, onClickCallback* callback);
     bool32 addOnHoverToElement(ElementPtr elptr, Context* context, onHoverCallback* callback);
     bool32 addOfHoverToElement(ElementPtr elptr, Context* context, ofHoverCallback* callback);
+
+    void removeElement(ElementPtr element, Context* context);
 
     ElementPtr addParagraph(Context* context, ElementPtr parent, const char* text, const StyleProperties& style, const char* id);
     ElementPtr addParagraph(Context* context, ElementPtr parent, const char* text, const StyleProperties& style);

@@ -38,7 +38,13 @@ namespace IME::Data {
         }
 
         void remove(sizeptr index) {
-            m_Data[index] = {};
+            m_Data[index].isoccupied = false;
+            if(index == m_Count - 1) {
+                m_Count--;
+                while(!m_Data[m_Count - 1].isoccupied && m_Count > 0) {
+                    m_Count--;
+                }
+            }
             if(index < m_Firstopenspot) {
                 m_Firstopenspot = index;
             }

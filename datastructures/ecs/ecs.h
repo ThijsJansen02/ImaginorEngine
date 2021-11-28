@@ -143,6 +143,12 @@ namespace IME::Data {
         }
 
         template<typename Comp>
+        bool32 hasComponent(Entity entity) {
+            uint32 comp_index = Comp::comp_index();
+            return map.getStorageLocation(entity.index, comp_index) != 0xFFFFFFFF;
+        }
+
+        template<typename Comp>
         Comp& getComponent(Entity entity) {
             uint32 index = Comp::comp_index();
             ComponentStorage* storage = &this->components[index];

@@ -38,6 +38,36 @@ namespace IME::Editor
         return transform;
     }
 
+    internal void
+    drawLocalSpace(mat4 transform, RenderQueue2D* rq, gl_id shader) {
+
+        vec3f x = {transform.data[0 + 0 * 4], transform.data[0 + 1 * 4], transform.data[0 + 2 * 4]};
+        vec3f y = {transform.data[1 + 0 * 4], transform.data[1 + 1 * 4], transform.data[1 + 2 * 4]};
+        vec3f z = {transform.data[2 + 0 * 4], transform.data[2 + 1 * 4], transform.data[2 + 2 * 4]};
+
+        vec3f origin = {transform.data[3 + 0 * 4], transform.data[3 + 1 * 4], transform.data[3 + 2 * 4]};
+
+        mat4 x_transform = calcLineSpaceMat4(origin, origin + x, 0.07f);
+        mat4 y_transform = calcLineSpaceMat4(origin, origin + y, 0.07f);
+        mat4 z_transform = calcLineSpaceMat4(origin, origin + z, 0.07f);
+
+        RendererCommand2D command;
+        command.shader = shader;
+        command.texture = 0;
+
+        command.transform = x_transform;
+        command.color = {1.0f, 0.0f, 0.0f, 1.0f};
+        rq->commands.push_back(command);
+
+        command.transform = y_transform;
+        command.color = {0.0f, 1.0f, 0.0f, 1.0f};
+        rq->commands.push_back(command);
+
+        command.transform = z_transform;
+        command.color = {0.0f, 0.0f, 1.0f, 1.0f};
+        rq->commands.push_back(command);
+    }
+
     void pushDebugMessage(const char* str, uint32 severity, PlatformInterface* interface) {
         Event e;
         e.destinations = IME_CONSOLE;
@@ -64,6 +94,10 @@ namespace IME::Editor
         gl_id fontshader;
         gl_id quadshader;
 
+        bool32 moving;
+        bool32 scaling;
+        bool32 rotating;
+
         Renderer2D::BatchRenderer2DData batchrenderdata;
     };
 
@@ -74,9 +108,50 @@ namespace IME::Editor
         Data::Entity selectedentity = {0xFFFFFFFF};
         TextureAtlas font;
         CacheableState cachestate;
+
+        UI::ElementPtr componentview;
+        UI::ElementPtr sceneview;
     };
 
-    bool32 onClick(char* id, UI::ElementPtr element, UI::Context* context, void* userptr, Event e) {
+    internal void
+    displayComponentsInComponentView(UI::ElementPtr windowptr, UI::Context* context, SceneRegistry* sceneregistry, UI::StyleProperties style, Data::Entity selected) {
+
+        UI::Window& window = context->uiwindows[windowptr.dataptr].data;
+        UI::Div& rootelement = context->divs[window.rootelement.dataptr].data;
+
+        style.background = {0.3f, 0.3f, 0.3f, 1.0f};
+        style.textcolor = {0.8f, 0.8f, 0.8f, 1.0f};
+        style.margin = {0.0f, 0.0f, 0.0f, 0.0f};
+        style.margin.bottom = 5.0f;
+        style.width = 100.0f;
+
+        for(UI::ElementPtr el : rootelement.children) {
+            UI::removeElement(el, context);
+        }
+
+        rootelement.children.clear();
+
+        if(sceneregistry->hasComponent<TagComponent>(selected)) {
+            TagComponent tag = sceneregistry->getComponent<TagComponent>(selected);
+            UI::addParagraph(context, window.rootelement, tag.tag, style, "tag_component");
+        }
+
+        if(sceneregistry->hasComponent<SpriteRendererComponent>(selected)) {
+            SpriteRendererComponent& sc = sceneregistry->getComponent<SpriteRendererComponent>(selected);
+
+            UI::StyleProperties style_p = style;
+            style_p.background = {0.8f, 0.0f, 0.0f, 1.0f};
+            UI::addParagraph(context, window.rootelement, "Sprite Component", style_p);
+
+            UI::StyleProperties style_fs = style;
+            UI::addFloatSlider(context, window.rootelement, style_fs, 4, &sc.color.x, "color");
+        }
+
+        UI::calculateUiComponentsForWindow(context, window);
+
+    }
+
+    bool32 onEntityClick(char* id, UI::ElementPtr element, UI::Context* context, void* userptr, Event e) {
 
         EditorState* stateptr = (EditorState*)userptr;
 
@@ -85,8 +160,20 @@ namespace IME::Editor
 
         UI::Paragraph& p = context->paragraphs[element.dataptr].data;
         p.props.background = {0.6f, 0.0f, 0.0f, 1.0f};
-        return false;
 
+        UI::StyleProperties style;
+        style.background = {0.7, 0.7f, 0.7f, 1.0f};
+        style.padding = {5.0f, 5.0f, 5.0f, 5.0f};
+        style.font = &stateptr->font;
+        style.glyphsize = {10.0f, 12.0f};
+        style.linespacing = {1.0f};
+        style.shader = stateptr->cachestate.quadshader;
+        style.textcolor = {0.0f, 0.0f, 0.0f, 1.0f};
+        style.margin = {5.0f, 5.0f, 5.0f, 5.0f};
+
+        displayComponentsInComponentView(stateptr->componentview, context, &stateptr->sceneregistry, style, stateptr->selectedentity);
+
+        return false;
     }
     bool32 onHoverEntity(char* id, UI::ElementPtr element, UI::Context* context, void* userptr, Event e) {
 
@@ -103,14 +190,16 @@ namespace IME::Editor
         return false;
     }
 
-    internal void 
+    internal UI::ElementPtr
     setupSceneView(UI::Context* context, SceneRegistry* sceneregistry, UI::StyleProperties style) {
         
+        UI::StyleProperties style_div = style;
+        style_div.margin = {0.0f, 0.0f, 0.0f, 0.0f};
         UI::Window window;
-        window.bounds = {vec2f{0.0f, 0.0f}, vec2f{400.0f, -400.0f}};
+        window.bounds = {vec2f{0.0f, 0.0f}, vec2f{300.0f, -200.0f}};
         window.context = context;
-        window.rootelement = UI::addDiv(context, {UI::UI_WINDOW, 0}, style);
-        context->uiwindows.push_back(window);
+        window.rootelement = UI::addDiv(context, {UI::UI_WINDOW, 0}, style_div);
+        uint32 index = (uint32)context->uiwindows.add(window);
 
         style.background = {0.3f, 0.3f, 0.3f, 1.0f};
         style.textcolor = {0.8f, 0.8f, 0.8f, 1.0f};
@@ -126,8 +215,26 @@ namespace IME::Editor
             UI::ElementPtr el = UI::addParagraph(context, window.rootelement, tag.tag, style, buffer);
             UI::addOnHoverToElement(el, context, onHoverEntity);
             UI::addOfHoverToElement(el, context, ofHoverEntity);
-            UI::addOnClickToElement(el, context, onClick);
+            UI::addOnClickToElement(el, context, onEntityClick);
         }
+
+        return {UI::UI_WINDOW, index};
+    }
+
+
+    internal UI::ElementPtr 
+    setupComponentView(UI::Context* context, SceneRegistry* sceneregistry, UI::StyleProperties style) {
+        
+        UI::StyleProperties style_div = style;
+        style_div.margin = {0.0f, 0.0f, 0.0f, 0.0f};
+        
+        UI::Window window;
+        window.bounds = {vec2f{0.0f, -200.0f}, vec2f{300.0f, -800.0f}};
+        window.context = context;
+        window.rootelement = UI::addDiv(context, {UI::UI_WINDOW, 0}, style_div);
+        uint32 index = (uint32)context->uiwindows.add(window);
+
+        return {UI::UI_WINDOW, index};
     }
 
     internal void
@@ -170,23 +277,26 @@ namespace IME::Editor
         style.background = {0.7, 0.7f, 0.7f, 1.0f};
         style.padding = {5.0f, 5.0f, 5.0f, 5.0f};
         style.font = &stateptr->font;
-        style.glyphsize = {10.0f, 15.0f};
+        style.glyphsize = {10.0f, 12.0f};
         style.linespacing = {1.0f};
         style.shader = state.quadshader;
         style.textcolor = {0.0f, 0.0f, 0.0f, 1.0f};
         style.margin = {5.0f, 5.0f, 5.0f, 5.0f};
 
         state.entity1 = stateptr->sceneregistry.createEntity();
+        stateptr->selectedentity = {0xFFFFFFFF};
         
         TransformComponent tc;
         SpriteRendererComponent sc;
         TagComponent tag;
 
         tag.tag = copyString("Entity(1)");
-        tc.transform = transformMat4<real32>({0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f});
+        tc.transform = rotationMat4({0.0f, 0.0f, toRadians(45.0f)}) * transformMat4<real32>({0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f});
         sc.shader = state.quadshader;
         sc.texture = 0;
         sc.color = {0.0f, 1.0f, 1.0f, 1.0f};
+
+        stateptr->sceneregistry.init();
 
         stateptr->sceneregistry.addComponent<TagComponent>(state.entity1, tag);
         stateptr->sceneregistry.addComponent<TransformComponent>(state.entity1, tc);
@@ -206,7 +316,8 @@ namespace IME::Editor
 
         stateptr->uicontext = UI::createContext();
         stateptr->uicontext.userptr = stateptr;
-        setupSceneView(&stateptr->uicontext, &stateptr->sceneregistry, style);
+        stateptr->sceneview = setupSceneView(&stateptr->uicontext, &stateptr->sceneregistry, style);
+        stateptr->componentview = setupComponentView(&stateptr->uicontext, &stateptr->sceneregistry, style);
         UI::calculateUiComponents(&stateptr->uicontext);
 
         state.sceneRQ = createRenderQueue2D(0);
@@ -225,6 +336,9 @@ namespace IME::Editor
         EditorState* stateptr = (EditorState*)platform.appmemory.persistentstorage;
         CacheableState state = stateptr->cachestate;
         Event e;
+
+        real32 aspectratio = (real32)platform.window.width / (real32)platform.window.height;
+        mat4 projection = OrthographicMat4(-10.0f, 10.0f, -10 / aspectratio, 10 / aspectratio, -100.0f, 100.0f);
         
         while(platform.events.pop(&e)) {
 
@@ -240,10 +354,9 @@ namespace IME::Editor
         Renderer2D::setBatchRendererData(&state.batchrenderdata);
         Memory::setGlobal(&state.mainmemorypool);
 
-       
         //start renering scene
         pushSpriteRenderComponentsToRQ(&stateptr->sceneregistry, &state.sceneRQ);
-        Renderer2D::beginScene(identity());
+        Renderer2D::beginScene(projection);
         Renderer2D::setShader(state.quadshader);
 
         flushRenderQueue2D(&state.sceneRQ, platform);
@@ -251,6 +364,22 @@ namespace IME::Editor
         Renderer2D::endScene();
         Renderer2D::flush();
 
+        platform.gfx.disable(IME_DEPTH_TEST);
+
+        if(stateptr->selectedentity.index != 0xFFFFFFFF) {
+            TransformComponent transform = stateptr->sceneregistry.getComponent<TransformComponent>(stateptr->selectedentity);
+            drawLocalSpace(transform.transform, &state.sceneRQ, state.quadshader);
+        }
+
+        Renderer2D::beginScene(projection);
+        Renderer2D::setShader(state.quadshader);
+
+        flushRenderQueue2D(&state.sceneRQ, platform);
+
+        Renderer2D::endScene();
+        Renderer2D::flush();
+
+        platform.gfx.enable(IME_DEPTH_TEST);
 
         //start rendering ui
         mat4 uiprojection = OrthographicMat4(0.0f, (real32)platform.window.width, -(real32)platform.window.height, 0.0f, -100.0f, 100.0f);

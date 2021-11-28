@@ -24,7 +24,11 @@
 			"chrono": "cpp",
 			"utility": "cpp",
 			"xhash": "cpp",
-			"xtree": "cpp"
+			"xtree": "cpp",
+			"deque": "cpp",
+			"format": "cpp",
+			"list": "cpp",
+			"vector": "cpp"
 		}
 	}
 }

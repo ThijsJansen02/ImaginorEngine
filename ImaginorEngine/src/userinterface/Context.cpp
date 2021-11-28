@@ -6,7 +6,7 @@
 
 namespace IME::UI {
 
-    real32 slidervaluesize = 6.0f;
+    real32 slidervaluesize = 5.0f;
 
     template<typename T>
     Bounds addBorderToBounds(const Bounds& bounds, const T& border) {
@@ -35,6 +35,7 @@ namespace IME::UI {
         result.divs = UiElementList<Div>::createFragmentedArrayList(1);
         result.paragraphs = UiElementList<Paragraph>::createFragmentedArrayList(1);
         result.floatsliders = UiElementList<FloatSlider>::createFragmentedArrayList(1);
+        result.uiwindows = UiElementList<Window>::createFragmentedArrayList(1);
         result.isresizing = false;
         return result;
     }
@@ -142,6 +143,28 @@ namespace IME::UI {
         return result;
     }
 
+    void removeElement(ElementPtr element, Context* context) {
+        if(element.type == UI_PARAGRAPH) {
+            Paragraph* el = &context->paragraphs[element.dataptr].data;
+
+            Memory::dealloc(strlen(el->text) + 1, (byte*)el->text);
+            Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
+
+            context->paragraphs.remove(element.dataptr);
+        }
+        if(element.type == UI_FLOAT_SLIDER) {
+            FloatSlider* el = &context->floatsliders[element.dataptr].data;
+            Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
+
+            context->floatsliders.remove(element.dataptr);
+        }
+        if(element.type == UI_DIV) {
+            Div* el = &context->divs[element.dataptr].data;
+            Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
+            context->divs.remove(element.dataptr);
+        }
+    }
+
     ElementPtr addFloatSlider(Context* context, ElementPtr parent, const StyleProperties& style, uint32 nfloats, real32* values, const char* tag) {
         return addFloatSlider(context, parent, style, nfloats, values, tag, "");
     }
@@ -228,7 +251,12 @@ namespace IME::UI {
 
                 for(uint32 i = 0; i < context->uiwindows.getCount(); i++) {
 
-                    Window* window = &context->uiwindows[i];
+                    if(!context->uiwindows[i].isoccupied) {
+                        continue;
+                    }
+
+                    Window* window = &context->uiwindows[i].data;
+
                     if(isBetween(mousepos, window->bounds.bottomright - buttonbounds, window->bounds.bottomright + buttonbounds)) {
                         context->isresizing = true;
                         context->selectedWindowptr = i;
@@ -255,9 +283,12 @@ namespace IME::UI {
         if(e.type == IME_MOUSE_MOVED) {
             IME::vec2f mousepos = mouseSpaceToUispace(platform.mouse.relativemousepos);
 
-            for(const Window& window : context->uiwindows) {
-                if (isInBounds(mousepos, window.bounds)) {
-                    onMouseMovedEvent(window.rootelement, context, mousepos, e);
+            for(uint32 i = 0; i < context->uiwindows.getCount(); i++) {
+                if(!context->uiwindows[i].isoccupied) {
+                    continue;
+                }
+                if (isInBounds(mousepos, context->uiwindows[i].data.bounds)) {
+                    onMouseMovedEvent(context->uiwindows[i].data.rootelement, context, mousepos, e);
                 }
             }
         }
@@ -274,7 +305,7 @@ namespace IME::UI {
 
     void updateUi(Context* context, const PlatformInterface& platform) {
         
-        Window* window = &context->uiwindows[context->selectedWindowptr];
+        Window* window = &context->uiwindows[context->selectedWindowptr].data;
         vec2f mousepos = mouseSpaceToUispace(platform.mouse.relativemousepos);
         if(context->isresizing) {
             window->bounds.bottomright = mousepos;
@@ -295,7 +326,10 @@ namespace IME::UI {
 
     void calculateUiComponents(Context* context) {
         for(uint32 i = 0; i < context->uiwindows.getCount(); i++) {
-            calculateUiComponentsForWindow(context, context->uiwindows[i]);
+            if(!context->uiwindows[i].isoccupied) {
+                continue;
+            }
+            calculateUiComponentsForWindow(context, context->uiwindows[i].data);
         }
     }
 
@@ -343,7 +377,7 @@ namespace IME::UI {
 
             p->props.elementtransform = calcTransformFromBounds(fullbounds, depth);
 
-            return fullbounds;
+            return addBorderToBounds(fullbounds, p->props.margin);
         }
 
         if(element.type == UI_DIV) {
@@ -368,7 +402,7 @@ namespace IME::UI {
             }
 
             div->props.elementtransform = calcTransformFromBounds(fullbounds, depth);
-            return fullbounds;
+            return addBorderToBounds(fullbounds, div->props.margin);
         }
 
         if(element.type == UI_FLOAT_SLIDER) {
@@ -389,13 +423,18 @@ namespace IME::UI {
 
             fs->props.elementtransform = calcTransformFromBounds(fullbounds, depth);
 
-            return fullbounds;
+            return addBorderToBounds(fullbounds, fs->props.margin);
         }
     }
 
     void pushElementsToRQ(const Context& context, RenderQueue2D* renderqueue, gl_id shader) {
 
-        for(Window& window : context.uiwindows) {
+        for(uint32 i = 0; i < context.uiwindows.getCount(); i++) {
+            if(context.uiwindows[i].isoccupied == false) {
+                continue;
+            }
+
+            const Window& window = context.uiwindows[i].data;
 
             RendererCommand2D command;
 
@@ -475,8 +514,8 @@ namespace IME::UI {
                 valuebounds.top = fs->props.contentbounds.top;
                 valuebounds.bottom = fs->props.contentbounds.bottom;
                 for(uint32 i = 0; i < fs->nvalues; i++) {
-                    valuebounds.right = fs->props.contentbounds.right - i * (slidervaluesize * fs->glyphsize.x + 10.0f);
-                    valuebounds.left = fs->props.contentbounds.right - i * (slidervaluesize * fs->glyphsize.x + 10.0f) - slidervaluesize * fs->glyphsize.x;
+                    valuebounds.right = fs->props.contentbounds.right - i * (slidervaluesize * fs->glyphsize.x + 5.0f);
+                    valuebounds.left = fs->props.contentbounds.right - i * (slidervaluesize * fs->glyphsize.x + 5.0f) - slidervaluesize * fs->glyphsize.x;
 
                     mat4 valueboundstransform = calcTransformFromBounds(valuebounds, fs->props.depth + 1);
                     command.shader = chunk->data.props.shader;
@@ -486,7 +525,7 @@ namespace IME::UI {
                     renderqueue->commands.push_back(command);
 
                     char buffer[16];
-                    sprintf_s(buffer, 256, "%.*g", (int32)slidervaluesize - 2,  fs->value[fs->nvalues - 1 - i]);
+                    sprintf_s(buffer, 16, "%.*g", (int32)slidervaluesize - 2,  fs->value[fs->nvalues - 1 - i]);
 
                     drawStringFromTextureAtlas(buffer, 
                         valuebounds.topleft, 
@@ -619,7 +658,11 @@ namespace IME::UI {
                             context->nvalue = fs->nvalues - 1 - i;
 
                             int32 characterplace = (uint32)(slidervaluesize * (mousepos.x - valuebounds.left) / (slidervaluesize * fs->glyphsize.x));
-                            int32 valuesize = log10f(fs->value[fs->nvalues - 1 - i]);
+                            real32 value = fs->value[fs->nvalues - 1 - i];
+                            int32 valuesize = 0.0f;
+                            if(value != 0.0f) {
+                                valuesize = log10f(value);
+                            }
                             real32 exp = (real32)(valuesize - characterplace);
                             context->multiplier = powerReal32(10.0f, exp);
                         }

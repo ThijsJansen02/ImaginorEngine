@@ -61,6 +61,12 @@ namespace IME {
         return result;
     }
 
+    vec3f extractRotation() {
+
+        real32 z_rot = 
+
+    }
+
     template<typename T> 
     inline mat4 translationMat4(vec3<T> translation) {
         mat4 result = identity();

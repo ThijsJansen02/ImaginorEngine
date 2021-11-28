@@ -14,6 +14,11 @@ namespace IME
         return abs(value);
     }
 
+    inline real32
+    arcCosReal32(real32 ratio) {
+        return acosf(ratio);
+    }
+
     inline real32 
     sine(real32 angle) {
         return sinf(angle);
