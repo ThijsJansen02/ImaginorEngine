@@ -10,22 +10,25 @@ namespace IME
         return sqrtf(value);
     }
 
-    inline uint32 absolute(int32 value) {
+    inline uint32 absoluteInt32(int32 value) {
         return abs(value);
     }
 
-    inline real32
-    arcCosReal32(real32 ratio) {
-        return acosf(ratio);
+    inline real32 arcSinReal32(real32 value) {
+        return asinf(value);
+    }
+
+    inline real32 arcTan2Real32(real32 x, real32 y) {
+        return atan2f(x, y);
     }
 
     inline real32 
-    sine(real32 angle) {
+    sinReal32(real32 angle) {
         return sinf(angle);
     }
 
     inline real32 
-    cosine(real32 angle) {
+    cosReal32(real32 angle) {
         return cosf(angle);
     }
 

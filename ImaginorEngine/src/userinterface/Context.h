@@ -48,8 +48,9 @@ namespace IME::UI {
     bool32 addOnClickToElement(ElementPtr elptr, Context* context, onClickCallback* callback);
     bool32 addOnHoverToElement(ElementPtr elptr, Context* context, onHoverCallback* callback);
     bool32 addOfHoverToElement(ElementPtr elptr, Context* context, ofHoverCallback* callback);
+    bool32 addOnUpdateFloatSlider(ElementPtr elptr, Context* context, onUpdateFloatSlider* callback);
 
-    void removeElement(ElementPtr element, Context* context);
+    void removeElementRecursive(ElementPtr element, Context* context);
 
     ElementPtr addParagraph(Context* context, ElementPtr parent, const char* text, const StyleProperties& style, const char* id);
     ElementPtr addParagraph(Context* context, ElementPtr parent, const char* text, const StyleProperties& style);

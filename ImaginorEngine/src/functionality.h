@@ -7,6 +7,7 @@ namespace IME {
     inline char* copyString(const char* other) {
         sizeptr len = strlen(other) + 1;
         char* result = (char*)Memory::alloc(len);
+        result[len - 1] = '\0';
         copy((byte*)other, (byte*)result, len);
         return result;
     }

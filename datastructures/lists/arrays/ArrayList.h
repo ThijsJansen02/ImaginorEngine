@@ -47,6 +47,13 @@ namespace IME::Data {
             return result;
         }  
 
+        inline static void destroy(ArrayList_& list) {
+            dealloc(list.m_Capacity * sizeof(T), (byte*)list.m_Data);
+            list.m_Capacity = 0;
+            list.m_Count = 0;
+            list.m_Data = nullptr;
+        }
+
         inline static ArrayList_ copy(const ArrayList_& list) {
             ArrayList_ result;
             result.m_Data = (T*)alloc(list.capacity * sizeof(T));
@@ -57,7 +64,7 @@ namespace IME::Data {
             return result;
         }
 
-        static ArrayList_ move(const ArrayList_& list) {
+        inline static ArrayList_ move(const ArrayList_& list) {
             ArrayList_ result = list;
             list = {};
             return result;

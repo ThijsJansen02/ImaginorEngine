@@ -143,7 +143,7 @@ namespace IME::UI {
         return result;
     }
 
-    void removeElement(ElementPtr element, Context* context) {
+    void removeElementRecursive(ElementPtr element, Context* context) {
         if(element.type == UI_PARAGRAPH) {
             Paragraph* el = &context->paragraphs[element.dataptr].data;
 
@@ -161,12 +161,25 @@ namespace IME::UI {
         if(element.type == UI_DIV) {
             Div* el = &context->divs[element.dataptr].data;
             Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
+
+            for(ElementPtr child : el->children) {
+                removeElementRecursive(child, context);
+            }
+            Data::ArrayList_<ElementPtr, Memory::alloc, Memory::dealloc>::destroy(el->children);
             context->divs.remove(element.dataptr);
         }
     }
 
     ElementPtr addFloatSlider(Context* context, ElementPtr parent, const StyleProperties& style, uint32 nfloats, real32* values, const char* tag) {
         return addFloatSlider(context, parent, style, nfloats, values, tag, "");
+    }
+
+    bool32 addOnUpdateFloatSlider(ElementPtr elptr, Context* context, onUpdateFloatSlider* callback) {
+
+        IME_DEBUG_ASSERT_BREAK(context->floatsliders[elptr.dataptr].isoccupied, "floatslider doesnt exist!")
+        FloatSlider& fs = context->floatsliders[elptr.dataptr].data;
+        fs.onupdate = callback;
+        return true;
     }
 
     bool32 addOnClickToElement(ElementPtr elptr, Context* context, onClickCallback* callback) {
@@ -318,9 +331,14 @@ namespace IME::UI {
             calculateUiComponentsForWindow(context, *window);
         }
         if(context->isSliding) {
+
+            Event e = {0};
             real32 dist = mousepos.x - context->mouseslideorigin.x;
             FloatSlider* fs = &context->floatsliders[context->selectedsliderptr.dataptr].data;
             fs->value[context->nvalue] = context->originalvalue + (int32)(dist * 0.05) * context->multiplier;
+            if(fs->onupdate) {
+                fs->onupdate(fs->props.id, context->selectedsliderptr, fs->value, fs->nvalues, context, context->userptr, e);
+            }
         }
     }
 
@@ -384,15 +402,17 @@ namespace IME::UI {
             Div* div = &context->divs[element.dataptr].data;
 
             Bounds childspace = subtractBorderFromBounds(subtractBorderFromBounds(maxbounds, div->props.padding), div->props.margin);
-            Bounds usedspace = {maxbounds.topleft, maxbounds.topleft};
+            Bounds usedspace = subtractBorderFromBounds(subtractBorderFromBounds( Bounds{maxbounds.topleft, maxbounds.topleft}, div->props.padding), div->props.margin);
 
             div->props.depth = depth;
 
             for(sizeptr i = 0; i < div->children.getCount(); i++) {
                 Bounds child = calculateUiComponent(context, div->children[i], element, childspace, depth + 1);
-                childspace.topleft = { child.bottom, child.left };
+                childspace.topleft = { child.left, child.bottom };
                 usedspace.bottomright = { maxReal32(childspace.right, usedspace.right), childspace.top };
             }
+
+            div->props.contentbounds = usedspace;
 
             Bounds fullbounds = addBorderToBounds(usedspace, div->props.padding);
 
@@ -426,6 +446,8 @@ namespace IME::UI {
             return addBorderToBounds(fullbounds, fs->props.margin);
         }
     }
+
+    real32 inputpadding = 5.0f;
 
     void pushElementsToRQ(const Context& context, RenderQueue2D* renderqueue, gl_id shader) {
 
@@ -514,8 +536,8 @@ namespace IME::UI {
                 valuebounds.top = fs->props.contentbounds.top;
                 valuebounds.bottom = fs->props.contentbounds.bottom;
                 for(uint32 i = 0; i < fs->nvalues; i++) {
-                    valuebounds.right = fs->props.contentbounds.right - i * (slidervaluesize * fs->glyphsize.x + 5.0f);
-                    valuebounds.left = fs->props.contentbounds.right - i * (slidervaluesize * fs->glyphsize.x + 5.0f) - slidervaluesize * fs->glyphsize.x;
+                    valuebounds.right = fs->props.contentbounds.right - i * (slidervaluesize * fs->glyphsize.x + inputpadding);
+                    valuebounds.left = fs->props.contentbounds.right - i * (slidervaluesize * fs->glyphsize.x + inputpadding) - slidervaluesize * fs->glyphsize.x;
 
                     mat4 valueboundstransform = calcTransformFromBounds(valuebounds, fs->props.depth + 1);
                     command.shader = chunk->data.props.shader;
@@ -646,8 +668,8 @@ namespace IME::UI {
                 valuebounds.bottom = fs->props.contentbounds.bottom;
 
                 for(uint32 i = 0; i < fs->nvalues; i++) {
-                    valuebounds.right = fs->props.contentbounds.right - i * (slidervaluesize * fs->glyphsize.x + 10.0f);
-                    valuebounds.left = fs->props.contentbounds.right - i * (slidervaluesize * fs->glyphsize.x + 10.0f) - slidervaluesize * fs->glyphsize.x;
+                    valuebounds.right = fs->props.contentbounds.right - i * (slidervaluesize * fs->glyphsize.x + inputpadding);
+                    valuebounds.left = fs->props.contentbounds.right - i * (slidervaluesize * fs->glyphsize.x + inputpadding) - slidervaluesize * fs->glyphsize.x;
 
                     if(isInBounds(mousepos, valuebounds)) {
                         if(e.param1 == IME_LEFT_MB) {
@@ -658,10 +680,13 @@ namespace IME::UI {
                             context->nvalue = fs->nvalues - 1 - i;
 
                             int32 characterplace = (uint32)(slidervaluesize * (mousepos.x - valuebounds.left) / (slidervaluesize * fs->glyphsize.x));
+                            if(context->originalvalue < 0.0f) {
+                                characterplace -= 1;
+                            }
                             real32 value = fs->value[fs->nvalues - 1 - i];
                             int32 valuesize = 0.0f;
                             if(value != 0.0f) {
-                                valuesize = log10f(value);
+                                valuesize = log10f(absoluteReal32(value));
                             }
                             real32 exp = (real32)(valuesize - characterplace);
                             context->multiplier = powerReal32(10.0f, exp);

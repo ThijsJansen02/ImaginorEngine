@@ -6,8 +6,11 @@
 namespace IME {
 
     struct mat3
-    {
-        real32 data[3 * 3] = {0};
+    {   
+        union {
+            real32 data[3 * 3] = {0.0f};
+            vec3f rows[3];
+        };
     };
 
     inline mat3 operator*(const mat3 &left, const mat3 &right)
@@ -32,10 +35,10 @@ namespace IME {
         return result;
     }
 
-    mat3 rotateMat3(real32 rotation) {
+    inline mat3 rotateMat3(real32 rotation) {
         mat3 result;
-        real32 costheta = cosine(rotation);
-        real32 sinetheta = sine(rotation);
+        real32 costheta = cosReal32(rotation);
+        real32 sinetheta = sinReal32(rotation);
 
         result.data[0 + 0 * 3] = costheta;
         result.data[1 + 0 * 3] = -sinetheta;
@@ -47,7 +50,7 @@ namespace IME {
         return result;
     }
 
-    mat3 transformMat3(const vec2f& scaling, const vec2f& translation) {
+    inline mat3 transformMat3(const vec2f& scaling, const vec2f& translation) {
 
         mat3 result;
 
@@ -61,7 +64,7 @@ namespace IME {
         return result;
     }
 
-    mat3 translateMat3(const vec2f& translation) {
+    inline mat3 translateMat3(const vec2f& translation) {
         mat3 result;
 
         result.data[0 + 0 * 3] = 1.0f;
@@ -73,7 +76,7 @@ namespace IME {
         return result;
     }
 
-    mat3 createOrthographicMat3(real32 left, real32 right, real32 bottom, real32 top)
+    inline mat3 createOrthographicMat3(real32 left, real32 right, real32 bottom, real32 top)
     {
         real32 width = right - left;
         real32 height = top - bottom;

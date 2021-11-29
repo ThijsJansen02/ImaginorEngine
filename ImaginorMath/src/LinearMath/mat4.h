@@ -1,6 +1,7 @@
 #pragma once
 #include <core.h>
 #include <intrinsics.h>
+#include "mat3.h"
 #include "vec4.h"
 #include "vec3.h"
 
@@ -35,14 +36,14 @@ namespace IME {
     inline mat4 rotationMat4(vec3f angles) {
         mat4 result;
 
-        real32 cosa = cosine(angles.z);
-        real32 sina = sine(angles.z);
+        real32 cosa = cosReal32(angles.z);
+        real32 sina = sinReal32(angles.z);
 
-        real32 cosb = cosine(angles.y);
-        real32 sinb = sine(angles.y);
+        real32 cosb = cosReal32(angles.y);
+        real32 sinb = sinReal32(angles.y);
 
-        real32 cosg = cosine(angles.x);
-        real32 sing = sine(angles.x);
+        real32 cosg = cosReal32(angles.x);
+        real32 sing = sinReal32(angles.x);
 
         result.data[0 + 0 * 4] = cosa * cosb;
         result.data[0 + 1 * 4] = sina * cosb;
@@ -61,10 +62,15 @@ namespace IME {
         return result;
     }
 
-    vec3f extractRotation() {
+    inline
+    mat3 getInnerMat3(mat4 input) {
 
-        real32 z_rot = 
+        mat3 result;
+        result.rows[0] = vec3f{input.rows[0].x, input.rows[0].y, input.rows[0].z};
+        result.rows[1] = vec3f{input.rows[1].x, input.rows[1].y, input.rows[1].z};
+        result.rows[2] = vec3f{input.rows[2].x, input.rows[2].y, input.rows[2].z};
 
+        return result;
     }
 
     template<typename T> 

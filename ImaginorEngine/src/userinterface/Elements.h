@@ -27,6 +27,8 @@ namespace IME::UI {
     typedef bool32 onHoverCallback(char* id, ElementPtr element, Context* context, void* userptr, Event e);
     typedef bool32 ofHoverCallback(char* id, ElementPtr element, Context* context, void* userptr, Event e);
 
+    typedef bool32 onUpdateFloatSlider(char* id, ElementPtr element, real32* floats, uint32 nfloats, Context* context, void* userptr, Event e);
+
     struct Padding {
         real32 left;
         real32 right;
@@ -123,6 +125,8 @@ namespace IME::UI {
         vec2f glyphsize;
         TextureAtlas* atlas;
         vec4f textcolor;
+
+        onUpdateFloatSlider* onupdate = nullptr;
 
         char* character;
         uint32 nvalues;

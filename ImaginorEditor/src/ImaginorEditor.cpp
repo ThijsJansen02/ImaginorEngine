@@ -8,6 +8,7 @@
 #include <ImaginorEngine/src/scene/Components.h>
 #include <intrinsics.h>
 #include <ImaginorEngine/src/functionality.h>
+#include <ImaginorMath/src/LinearMath/conversion.h>
 
 namespace IME::Editor
 {
@@ -102,19 +103,31 @@ namespace IME::Editor
     };
 
     struct EditorState {
+        CacheableState cachestate;
+
+        EulerTransform selectedtransform;
         
         UI::Context uicontext;
         SceneRegistry sceneregistry;
         Data::Entity selectedentity = {0xFFFFFFFF};
         TextureAtlas font;
-        CacheableState cachestate;
 
         UI::ElementPtr componentview;
         UI::ElementPtr sceneview;
     };
 
+    internal bool32 
+    onUpdateTransform(char* id, UI::ElementPtr element, real32* floats, uint32 nfloats, UI::Context* context, void* userptr, Event e) {
+
+        EditorState* stateptr = (EditorState*)userptr;
+        TransformComponent& tc = stateptr->sceneregistry.getComponent<TransformComponent>(stateptr->selectedentity);
+
+        tc.transform = transformMat4FromEulerTransform321(stateptr->selectedtransform);
+        return true;
+    }   
+
     internal void
-    displayComponentsInComponentView(UI::ElementPtr windowptr, UI::Context* context, SceneRegistry* sceneregistry, UI::StyleProperties style, Data::Entity selected) {
+    displayComponentsInComponentView(UI::ElementPtr windowptr, UI::Context* context, SceneRegistry* sceneregistry, UI::StyleProperties style, Data::Entity selected, EditorState* stateptr) {
 
         UI::Window& window = context->uiwindows[windowptr.dataptr].data;
         UI::Div& rootelement = context->divs[window.rootelement.dataptr].data;
@@ -126,9 +139,8 @@ namespace IME::Editor
         style.width = 100.0f;
 
         for(UI::ElementPtr el : rootelement.children) {
-            UI::removeElement(el, context);
+            UI::removeElementRecursive(el, context);
         }
-
         rootelement.children.clear();
 
         if(sceneregistry->hasComponent<TagComponent>(selected)) {
@@ -136,19 +148,48 @@ namespace IME::Editor
             UI::addParagraph(context, window.rootelement, tag.tag, style, "tag_component");
         }
 
+        style.padding = {2.0f, 2.0f, 2.0f, 2.0f};
+
         if(sceneregistry->hasComponent<SpriteRendererComponent>(selected)) {
+
             SpriteRendererComponent& sc = sceneregistry->getComponent<SpriteRendererComponent>(selected);
+
+            UI::ElementPtr main = UI::addDiv(context, window.rootelement, style, "spriterenderer_component");
 
             UI::StyleProperties style_p = style;
             style_p.background = {0.8f, 0.0f, 0.0f, 1.0f};
-            UI::addParagraph(context, window.rootelement, "Sprite Component", style_p);
+            style_p.margin = {0.0f, 0.0f, 0.0f, 0.0f};
+            UI::addParagraph(context, main, "Sprite Component", style_p);
 
             UI::StyleProperties style_fs = style;
-            UI::addFloatSlider(context, window.rootelement, style_fs, 4, &sc.color.x, "color");
+            style_fs.margin = {0.0f, 0.0f, 0.0f, 0.0f};
+            UI::addFloatSlider(context, main, style_fs, 4, &sc.color.x, "color");
+        }
+
+        if(sceneregistry->hasComponent<TransformComponent>(selected)) {
+            TransformComponent& tc = sceneregistry->getComponent<TransformComponent>(selected);
+            UI::ElementPtr main = UI::addDiv(context, window.rootelement, style, "transform_component");
+
+            stateptr->selectedtransform = eulerTransformFromMat4(tc.transform);
+
+            UI::StyleProperties style_p = style;
+            style_p.background = {0.8f, 0.0f, 0.0f, 1.0f};
+            style_p.margin = {0.0f, 0.0f, 0.0f, 0.0f};
+            UI::addParagraph(context, main, "Transform Component", style_p);
+
+            UI::StyleProperties style_fs = style;
+            style_fs.margin = {0.0f, 0.0f, 0.0f, 0.0f};
+
+            UI::ElementPtr translation = UI::addFloatSlider(context, main, style_fs, 3, &stateptr->selectedtransform.translation.x, "translation");
+            UI::ElementPtr rotation = UI::addFloatSlider(context, main, style_fs, 3, &stateptr->selectedtransform.rotation.x, "rotation");
+            UI::ElementPtr scale = UI::addFloatSlider(context, main, style_fs, 3, &stateptr->selectedtransform.scale.x, "scale");
+
+            UI::addOnUpdateFloatSlider(translation, context, onUpdateTransform);
+            UI::addOnUpdateFloatSlider(rotation, context, onUpdateTransform);
+            UI::addOnUpdateFloatSlider(scale, context, onUpdateTransform);
         }
 
         UI::calculateUiComponentsForWindow(context, window);
-
     }
 
     bool32 onEntityClick(char* id, UI::ElementPtr element, UI::Context* context, void* userptr, Event e) {
@@ -171,7 +212,7 @@ namespace IME::Editor
         style.textcolor = {0.0f, 0.0f, 0.0f, 1.0f};
         style.margin = {5.0f, 5.0f, 5.0f, 5.0f};
 
-        displayComponentsInComponentView(stateptr->componentview, context, &stateptr->sceneregistry, style, stateptr->selectedentity);
+        displayComponentsInComponentView(stateptr->componentview, context, &stateptr->sceneregistry, style, stateptr->selectedentity, stateptr);
 
         return false;
     }
@@ -356,6 +397,15 @@ namespace IME::Editor
 
         //start renering scene
         pushSpriteRenderComponentsToRQ(&stateptr->sceneregistry, &state.sceneRQ);
+
+        Quaternion quat = quaternionFromAngleVector(toRadians(22.5f), normalize(vec3f{0.0f, 0.0f, 1.0f}));
+        RendererCommand2D command;
+        command.color = {1.0f, 0.0f, 0.0f, 1.0f};
+        command.shader = state.quadshader;
+        command.transform = quaternionToMat4(quat);
+        command.texture = 0;
+        state.sceneRQ.commands.push_back(command);
+
         Renderer2D::beginScene(projection);
         Renderer2D::setShader(state.quadshader);
 
