@@ -5,6 +5,7 @@
 #include <datastructures/lists/arrays/ArrayList.h>
 #include "../memory.h"
 #include "../textrenderering.h"
+#include "../assets.h"
 
 namespace IME::UI {
 
@@ -15,7 +16,8 @@ namespace IME::UI {
         UI_PARAGRAPH,
         UI_DIV,
         UI_FLOAT_SLIDER,
-        UI_WINDOW
+        UI_WINDOW,
+        UI_IMAGE
     };
 
     struct ElementPtr {
@@ -54,6 +56,10 @@ namespace IME::UI {
 
         real32 width = 0.0f;
         real32 height = 0.0f;
+
+        real32 absolutewidth = 0.0f;
+        real32 absoluteheight = 0.0f;
+
         Border border = {0.0f, 0.0f, 0.0f, 0.0f};
         Padding padding = {0.0f, 0.0f, 0.0f, 0.0f}; 
         Margin margin = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -71,6 +77,8 @@ namespace IME::UI {
         char* tags;
 
         bool32 hovered = false;
+
+        ElementPtr parent;
 
         onClickCallback* onclick = nullptr;
         onHoverCallback* onHover = nullptr;
@@ -97,6 +105,9 @@ namespace IME::UI {
 
         real32 width = 0.0f;
         real32 height = 0.0f;
+
+        real32 absolutewidth = 0.0f;
+        real32 absoluteheight = 0.0f;
     };
 
 
@@ -108,14 +119,10 @@ namespace IME::UI {
         vec2f glyphsize;
         real32 linespacing;
         TextureAtlas* atlas;
-
-        ElementPtr parent;
     };
 
     struct Div {
         StaticElementProperties props;
-
-        ElementPtr parent;
         Data::ArrayList_<ElementPtr, Memory::alloc, Memory::dealloc> children;
     };
 
@@ -133,5 +140,13 @@ namespace IME::UI {
         real32* value;
         const char* tag;
         uint32 taglength;
+    };
+
+    struct Image {
+        StaticElementProperties props;
+
+        Texture* texture;
+        vec2f imagesize;
+        gl_id image;
     };
 };

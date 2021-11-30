@@ -36,6 +36,7 @@ namespace IME::UI {
         result.paragraphs = UiElementList<Paragraph>::createFragmentedArrayList(1);
         result.floatsliders = UiElementList<FloatSlider>::createFragmentedArrayList(1);
         result.uiwindows = UiElementList<Window>::createFragmentedArrayList(1);
+        result.images = UiElementList<Image>::createFragmentedArrayList(1);
         result.isresizing = false;
         return result;
     }
@@ -49,27 +50,62 @@ namespace IME::UI {
 
     }
 
+    StaticElementProperties setStaticProperties( const StyleProperties& style, ElementPtr parent, const char* id) {
+        StaticElementProperties props;
+
+        props.height = style.height;
+        props.width = style.width;
+        props.absoluteheight = style.absoluteheight;
+        props.absolutewidth = style.absolutewidth;
+
+        props.padding = style.padding;
+        props.border = style.border;
+        props.margin = style.margin;
+
+        props.background = style.background;
+        props.bordercolor = style.bordercolor;
+
+        props.shader = style.shader;
+
+        props.id = copyString(id);
+
+        return props;
+    }
+
+    ElementPtr addImage(Context* context, ElementPtr parent, const StyleProperties& style, Texture* texture, const char* id) {
+
+        Image i;
+        i.props = setStaticProperties(style, parent, id);
+        
+        i.imagesize = { (real32)texture->props.width, (real32)texture->props.height };
+        i.image = texture->texture;
+        i.texture = texture;
+
+        ElementPtr result;
+        result.dataptr = context->images.add(i);
+        result.type = UI_IMAGE;
+
+        if(parent.type == UI_DIV) {
+            context->divs[parent.dataptr].data.children.push_back(result);
+        }
+        return result;
+    }
+
     ElementPtr addParagraph(Context* context, ElementPtr parent, const char* text, const StyleProperties& style, const char* id) {
+
         Paragraph p;
-        p.parent = parent;
+        p.props.parent = parent;
         p.textlength = strlen(text);
         p.text = (char*)Memory::alloc(p.textlength + 1);
         copy((byte*)text, (byte*)p.text, p.textlength + 1);
-
-        p.props.id = IME::copyString(id);
-
+        
         //all style related things
         p.glyphsize = style.glyphsize;
         p.atlas = style.font;
         p.linespacing = style.linespacing;
         p.textcolor = style.textcolor;
-        p.props.background = style.background;
-        p.props.border = style.border;
-        p.props.bordercolor = style.bordercolor;
-        p.props.padding = style.padding;
-        p.props.shader = style.shader;
-        p.props.margin = style.margin;
-        p.props.width = style.width;
+
+        p.props = setStaticProperties(style, parent, id);
 
         ElementPtr result;
         result.dataptr = context->paragraphs.add(p);
@@ -151,12 +187,14 @@ namespace IME::UI {
             Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
 
             context->paragraphs.remove(element.dataptr);
+            return;
         }
         if(element.type == UI_FLOAT_SLIDER) {
             FloatSlider* el = &context->floatsliders[element.dataptr].data;
             Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
 
             context->floatsliders.remove(element.dataptr);
+            return;
         }
         if(element.type == UI_DIV) {
             Div* el = &context->divs[element.dataptr].data;
@@ -167,6 +205,12 @@ namespace IME::UI {
             }
             Data::ArrayList_<ElementPtr, Memory::alloc, Memory::dealloc>::destroy(el->children);
             context->divs.remove(element.dataptr);
+            return;
+        }
+        if(element.type == UI_IMAGE) {
+            Image* el = &context->images[element.dataptr].data;
+            Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
+            context->images.remove(element.dataptr);
         }
     }
 
@@ -376,8 +420,9 @@ namespace IME::UI {
         
         Bounds result;
         if(element.type == UI_PARAGRAPH) {
+            IME_DEBUG_ASSERT_BREAK(context->paragraphs[element.dataptr].isoccupied, "element doesnt exist");
             Paragraph* p = &context->paragraphs[element.dataptr].data;
-            p->parent = parent;
+            p->props.parent = parent;
 
             Bounds maxtextspace = subtractBorderFromBounds(subtractBorderFromBounds(maxbounds, p->props.padding), p->props.margin);
             vec2f textsize = calculateStringSize(p->text, maxtextspace.right - maxtextspace.left, p->glyphsize, p->linespacing);
@@ -399,6 +444,7 @@ namespace IME::UI {
         }
 
         if(element.type == UI_DIV) {
+            IME_DEBUG_ASSERT_BREAK(context->divs[element.dataptr].isoccupied, "element doesnt exist");
             Div* div = &context->divs[element.dataptr].data;
 
             Bounds childspace = subtractBorderFromBounds(subtractBorderFromBounds(maxbounds, div->props.padding), div->props.margin);
@@ -426,7 +472,7 @@ namespace IME::UI {
         }
 
         if(element.type == UI_FLOAT_SLIDER) {
-            
+            IME_DEBUG_ASSERT_BREAK(context->floatsliders[element.dataptr].isoccupied, "element doesnt exist");
             FloatSlider* fs = &context->floatsliders[element.dataptr].data;
 
             fs->props.contentbounds = subtractBorderFromBounds(subtractBorderFromBounds(maxbounds, fs->props.padding), fs->props.margin);
@@ -444,6 +490,37 @@ namespace IME::UI {
             fs->props.elementtransform = calcTransformFromBounds(fullbounds, depth);
 
             return addBorderToBounds(fullbounds, fs->props.margin);
+        }
+
+        if(element.type == UI_IMAGE) {
+            IME_DEBUG_ASSERT_BREAK(context->images[element.dataptr].isoccupied, "element doesnt exist");
+            Image* i = &context->images[element.dataptr].data;
+
+            Bounds maxcontentbounds = subtractBorderFromBounds(subtractBorderFromBounds(maxbounds, i->props.margin), i->props.padding);
+
+            i->props.contentbounds = { maxcontentbounds.topleft, {maxcontentbounds.topleft.x + i->imagesize.x, maxcontentbounds.topleft.y - i->imagesize.y} };
+            i->props.depth = depth;
+
+            real32 aspectratio = i->imagesize.x / i->imagesize.y;
+
+            if(i->props.absolutewidth != 0.0f) {
+                i->props.contentbounds.right = i->props.contentbounds.left + i->props.absolutewidth;
+                if(i->props.absoluteheight == 0.0f && i->props.height == 0.0f) {
+                    i->props.contentbounds.bottom = i->props.contentbounds.top - (i->props.absolutewidth / aspectratio);
+                }
+            }
+
+            if(i->props.absoluteheight != 0.0f) {
+                i->props.contentbounds.bottom = i->props.contentbounds.top - i->props.absoluteheight;
+                if(i->props.absolutewidth == 0.0f && i->props.width == 0.0f) {
+                    i->props.contentbounds.right = i->props.contentbounds.left + (i->props.absoluteheight * aspectratio);
+                }
+            }
+
+            Bounds fullbounds = addBorderToBounds(i->props.contentbounds, i->props.padding);
+            i->props.elementtransform = calcTransformFromBounds(fullbounds, i->props.depth);
+
+            return addBorderToBounds(fullbounds, i->props.margin);
         }
     }
 
@@ -573,6 +650,33 @@ namespace IME::UI {
                     0.0f);
             }
         }
+        for(sizeptr i = 0; i < context.images.getCount(); i++) {
+
+            const UiElementList<Image>::DataChunk* chunk = &context.images[i];
+            const Image* fs = &chunk->data;
+
+            if(chunk->isoccupied) {
+
+                RendererCommand2D command;
+                command.shader = chunk->data.props.shader;
+                command.texture = 0;
+                command.transform = chunk->data.props.elementtransform;
+                command.color = chunk->data.props.background;
+                renderqueue->commands.push_back(command);
+
+                command.shader = chunk->data.props.shader;
+                command.texture = fs->image;
+                command.transform = calcTransformFromBounds(fs->props.contentbounds, fs->props.depth + 1);
+                command.color = {1.0f, 1.0f, 1.0f, 1.0f};
+                command.texcoords[0] = {0.0f, 0.0f};
+                command.texcoords[1] = {1.0f, 0.0f};
+                command.texcoords[2] = {1.0f, 1.0f};
+                command.texcoords[3] = {0.0f, 1.0f};
+
+
+                renderqueue->commands.push_back(command);         
+            }
+        }
     }
 
     IME::bool32 onMouseMovedEvent(ElementPtr element, Context* context, vec2f mousepos, Event e) {
@@ -683,13 +787,21 @@ namespace IME::UI {
                             if(context->originalvalue < 0.0f) {
                                 characterplace -= 1;
                             }
+
+
+
                             real32 value = fs->value[fs->nvalues - 1 - i];
                             int32 valuesize = 0.0f;
                             if(value != 0.0f) {
                                 valuesize = log10f(absoluteReal32(value));
                             }
-                            real32 exp = (real32)(valuesize - characterplace);
-                            context->multiplier = powerReal32(10.0f, exp);
+
+
+                            int32 exp = valuesize - characterplace;
+                            if(exp < 0) {
+                                exp++;
+                            }
+                            context->multiplier = powerReal32(10.0f, (real32)exp);
                         }
                     }
                 }

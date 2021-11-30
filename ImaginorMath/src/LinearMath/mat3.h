@@ -35,6 +35,15 @@ namespace IME {
         return result;
     }
 
+    inline vec3f operator*(const mat3 &right, const vec3f &left)
+    {
+        vec3f result;
+        result.x = right.data[0 + 0 * 3] * left.x + right.data[1 + 0 * 3] * left.y + right.data[2 + 0 * 3] * left.z;
+        result.y = right.data[0 + 1 * 3] * left.x + right.data[1 + 1 * 3] * left.y + right.data[2 + 1 * 3] * left.z;
+        result.z = right.data[0 + 2 * 3] * left.x + right.data[1 + 2 * 3] * left.y + right.data[2 + 2 * 3] * left.z;
+        return result;
+    }
+
     inline mat3 rotateMat3(real32 rotation) {
         mat3 result;
         real32 costheta = cosReal32(rotation);

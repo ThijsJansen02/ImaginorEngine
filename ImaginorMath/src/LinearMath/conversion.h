@@ -1,5 +1,6 @@
 #pragma once
 #include "mat4.h"
+#include "mat3.h"
 #include "vec3.h"
 #include "eulertransform.h" 
 
@@ -26,6 +27,14 @@ namespace IME {
 
         mat4 result = translationMat4(euler.translation) * rotationMat4({toRadians(euler.rotation.x), toRadians(euler.rotation.y), toRadians(euler.rotation.z)}) * scaleMat4(euler.scale);
         return result;
+    }
+
+    vec4f toVec4(const vec2f& in) {
+        return {in.x, in.y, 0.0f, 0.0f};
+    }
+
+    vec2f toVec2(const vec3f& in) {
+        return {in.x, in.y};
     }
 
 

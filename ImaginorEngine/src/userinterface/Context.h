@@ -19,6 +19,7 @@ namespace IME::UI {
         UiElementList<Div> divs;
         UiElementList<FloatSlider> floatsliders;
         UiElementList<Window> uiwindows;
+        UiElementList<Image> images;
 
         uint32 selectedWindowptr;
 
@@ -45,6 +46,7 @@ namespace IME::UI {
     void calculateUiComponents(Context* context);
     void calculateUiComponentsForWindow(Context* context, const Window& window);
     void pushElementsToRQ(const Context& context, RenderQueue2D* renderqueue, gl_id shader);
+
     bool32 addOnClickToElement(ElementPtr elptr, Context* context, onClickCallback* callback);
     bool32 addOnHoverToElement(ElementPtr elptr, Context* context, onHoverCallback* callback);
     bool32 addOfHoverToElement(ElementPtr elptr, Context* context, ofHoverCallback* callback);
@@ -58,5 +60,5 @@ namespace IME::UI {
     ElementPtr addDiv(Context* context, ElementPtr parent, const StyleProperties& style);
     ElementPtr addFloatSlider(Context* context, ElementPtr parent, const StyleProperties& style, uint32 nfloats, real32* values, const char* tag, const char* id);
     ElementPtr addFloatSlider(Context* context, ElementPtr parent, const StyleProperties& style, uint32 nfloats, real32* values, const char* tag);
-
+    ElementPtr addImage(Context* context, ElementPtr parent, const StyleProperties& style, Texture* texture, const char* id);
 }

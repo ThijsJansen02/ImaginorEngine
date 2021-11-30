@@ -9,6 +9,7 @@
 #include <intrinsics.h>
 #include <ImaginorEngine/src/functionality.h>
 #include <ImaginorMath/src/LinearMath/conversion.h>
+#include <ImaginorEngine/src/assets.h>
 
 namespace IME::Editor
 {
@@ -22,17 +23,16 @@ namespace IME::Editor
     }
 
     internal IME::mat4 
-    calcLineSpaceMat4(const vec3f& p1, const vec3f& p2, real32 thickness) {
+    calcLineSpaceMat4(const vec3f& p1, const vec3f& p2, real32 thickness, vec3f viewdirection) {
 
-        vec3f up = {0.0f, 1.0f, 0.0f};
-        vec3f line = p2 - p1;
+        vec3f p1p2 = p2 - p1;
 
-        vec3f middle = p1 + 0.5f * line;
-        vec3f perpz = thickness * normalize(crossProduct(up, line));
-        vec3f perpy = thickness * normalize(crossProduct(perpz, line));
+        vec3f middle = p1 + 0.5f * p1p2;
+        vec3f perpy = thickness * normalize(crossProduct(viewdirection, p1p2));
+        vec3f perpz = thickness * normalize(crossProduct(perpy, p1p2));
 
         IME::mat4 transform = columnComposeMat4(
-            {line.x, line.y, line.z, 0.0f}, 
+            {p1p2.x, p1p2.y, p1p2.z, 0.0f}, 
             {perpy.x, perpy.y, perpy.y, 0.0f}, 
             {perpz.x, perpz.y, perpz.z, 0.0f}, 
             {middle.x, middle.y, middle.z, 1.0f});
@@ -40,17 +40,17 @@ namespace IME::Editor
     }
 
     internal void
-    drawLocalSpace(mat4 transform, RenderQueue2D* rq, gl_id shader) {
+    drawLocalSpace(mat4 transform, RenderQueue2D* rq, gl_id shader, vec3f viewdir) {
 
-        vec3f x = {transform.data[0 + 0 * 4], transform.data[0 + 1 * 4], transform.data[0 + 2 * 4]};
-        vec3f y = {transform.data[1 + 0 * 4], transform.data[1 + 1 * 4], transform.data[1 + 2 * 4]};
-        vec3f z = {transform.data[2 + 0 * 4], transform.data[2 + 1 * 4], transform.data[2 + 2 * 4]};
+        vec3f x = normalize(vec3f{transform.data[0 + 0 * 4], transform.data[0 + 1 * 4], transform.data[0 + 2 * 4]});
+        vec3f y = normalize(vec3f{transform.data[1 + 0 * 4], transform.data[1 + 1 * 4], transform.data[1 + 2 * 4]});
+        vec3f z = normalize(vec3f{transform.data[2 + 0 * 4], transform.data[2 + 1 * 4], transform.data[2 + 2 * 4]});
 
         vec3f origin = {transform.data[3 + 0 * 4], transform.data[3 + 1 * 4], transform.data[3 + 2 * 4]};
 
-        mat4 x_transform = calcLineSpaceMat4(origin, origin + x, 0.07f);
-        mat4 y_transform = calcLineSpaceMat4(origin, origin + y, 0.07f);
-        mat4 z_transform = calcLineSpaceMat4(origin, origin + z, 0.07f);
+        mat4 x_transform = calcLineSpaceMat4(origin, origin + x, 0.07f, viewdir);
+        mat4 y_transform = calcLineSpaceMat4(origin, origin + y, 0.07f, viewdir);
+        mat4 z_transform = calcLineSpaceMat4(origin, origin + z, 0.07f, viewdir);
 
         RendererCommand2D command;
         command.shader = shader;
@@ -69,7 +69,9 @@ namespace IME::Editor
         rq->commands.push_back(command);
     }
 
-    void pushDebugMessage(const char* str, uint32 severity, PlatformInterface* interface) {
+    inline void 
+    pushDebugMessage(const char* str, uint32 severity, PlatformInterface* interface) {
+
         Event e;
         e.destinations = IME_CONSOLE;
         e.param1 = severity;
@@ -82,13 +84,12 @@ namespace IME::Editor
     typedef Data::Registry<2048, 40, Memory::alloc, Memory::dealloc> SceneRegistry;
 
     struct CacheableState {
+
         MemoryArena mainmemory;
         MemoryPool mainmemorypool;
 
         RenderQueue2D sceneRQ;
         RenderQueue2D uiRQ;
-
-        gl_id texture;
 
         Data::Entity entity1;
 
@@ -106,6 +107,8 @@ namespace IME::Editor
         CacheableState cachestate;
 
         EulerTransform selectedtransform;
+
+        Texture texture;
         
         UI::Context uicontext;
         SceneRegistry sceneregistry;
@@ -164,6 +167,16 @@ namespace IME::Editor
             UI::StyleProperties style_fs = style;
             style_fs.margin = {0.0f, 0.0f, 0.0f, 0.0f};
             UI::addFloatSlider(context, main, style_fs, 4, &sc.color.x, "color");
+
+            if(sc.texture != nullptr && sc.textureid != 0) {
+
+                UI::StyleProperties style_i = style;
+                style_i.background = {0.0f, 0.0f, 0.0f, 1.0f};
+                style_i.padding = {0.0f, 0.0f, 0.0f, 0.0f};
+                style_i.margin = {0.0f, 0.0f, 0.0f, 0.0f};
+                style_i.absolutewidth = 50.0f;
+                UI::addImage(context, main, style_i, sc.texture, "attached_texture");
+            }
         }
 
         if(sceneregistry->hasComponent<TransformComponent>(selected)) {
@@ -286,11 +299,11 @@ namespace IME::Editor
             RendererCommand2D command;
             command.color = sr->color;
             command.shader = sr->shader;
-            command.texture = sr->texture;
+            command.texture = sr->textureid;
             command.texcoords[0] = {0.0f, 0.0f};
-            command.texcoords[0] = {1.0f, 0.0f};
-            command.texcoords[0] = {1.0f, 1.0f};
-            command.texcoords[0] = {0.0f, 1.0f};
+            command.texcoords[1] = {1.0f, 0.0f};
+            command.texcoords[2] = {1.0f, 1.0f};
+            command.texcoords[3] = {0.0f, 1.0f};
             command.transform = tr->transform;
             rq->commands.push_back(command);
 
@@ -345,10 +358,14 @@ namespace IME::Editor
 
         Data::Entity entity2 = stateptr->sceneregistry.createEntity();
 
+        stateptr->texture = loadColorTexture8("hat32x32.png", platform, 0);
+
         tag.tag = copyString("Entity(2)");
         tc.transform = transformMat4<real32>({0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f});
         sc.shader = state.quadshader;
-        sc.texture = 0;
+        sc.textureid = stateptr->texture.texture;
+        sc.texture = &stateptr->texture;
+        
         sc.color = {1.0f, 0.0f, 1.0f, 1.0f};
 
         stateptr->sceneregistry.addComponent<TagComponent>(entity2, tag);
@@ -382,9 +399,7 @@ namespace IME::Editor
         mat4 projection = OrthographicMat4(-10.0f, 10.0f, -10 / aspectratio, 10 / aspectratio, -100.0f, 100.0f);
         
         while(platform.events.pop(&e)) {
-
             UI::uiOnEvent(&stateptr->uicontext, e, platform);
-
         }
 
         platform.gfx.setviewport(0, 0, platform.window.width, platform.window.height);
@@ -398,14 +413,6 @@ namespace IME::Editor
         //start renering scene
         pushSpriteRenderComponentsToRQ(&stateptr->sceneregistry, &state.sceneRQ);
 
-        Quaternion quat = quaternionFromAngleVector(toRadians(22.5f), normalize(vec3f{0.0f, 0.0f, 1.0f}));
-        RendererCommand2D command;
-        command.color = {1.0f, 0.0f, 0.0f, 1.0f};
-        command.shader = state.quadshader;
-        command.transform = quaternionToMat4(quat);
-        command.texture = 0;
-        state.sceneRQ.commands.push_back(command);
-
         Renderer2D::beginScene(projection);
         Renderer2D::setShader(state.quadshader);
 
@@ -418,7 +425,7 @@ namespace IME::Editor
 
         if(stateptr->selectedentity.index != 0xFFFFFFFF) {
             TransformComponent transform = stateptr->sceneregistry.getComponent<TransformComponent>(stateptr->selectedentity);
-            drawLocalSpace(transform.transform, &state.sceneRQ, state.quadshader);
+            drawLocalSpace(transform.transform, &state.sceneRQ, state.quadshader, {0.0f, 0.0f, -1.0f});
         }
 
         Renderer2D::beginScene(projection);

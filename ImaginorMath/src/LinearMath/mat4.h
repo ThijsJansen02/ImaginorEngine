@@ -63,7 +63,7 @@ namespace IME {
     }
 
     inline
-    mat3 getInnerMat3(mat4 input) {
+    mat3 getInnerMat3(const mat4& input) {
 
         mat3 result;
         result.rows[0] = vec3f{input.rows[0].x, input.rows[0].y, input.rows[0].z};

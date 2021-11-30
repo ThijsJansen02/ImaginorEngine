@@ -1,6 +1,7 @@
 #pragma once
 #include <ImaginorMath/src/LinearMath/linearmath.h>
 #include <datastructures/ecs/ecs.h>
+#include "../assets.h"
 
 namespace IME {
 
@@ -12,7 +13,8 @@ namespace IME {
 
     struct SpriteRendererComponent {
         gl_id shader;
-        gl_id texture;
+        gl_id textureid;
+        Texture* texture;
         vec4f color;
 
         COMPONENT()
