@@ -4,3 +4,5 @@
 #include "vec4.h"
 #include "mat4.h"
 #include "quaternion.h"
+#include "conversion.h"
+#include "eulertransform.h"
