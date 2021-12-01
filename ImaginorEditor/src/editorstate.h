@@ -16,6 +16,8 @@ namespace IME {
         RenderQueue2D sceneRQ;
         RenderQueue2D uiRQ;
 
+        vec2f lastmousepos = {0.0f, 0.0f};
+
         Data::Entity entity1;
 
         gl_id fontshader;

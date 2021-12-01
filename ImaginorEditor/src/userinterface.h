@@ -148,6 +148,7 @@ namespace IME {
         style.margin.bottom = 5.0f;
         style.width = 100.0f;
 
+
         for(auto [tag, entity] : sceneregistry->view<TagComponent>()) {
 
             char buffer[32];

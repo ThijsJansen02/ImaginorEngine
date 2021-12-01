@@ -22,6 +22,10 @@ namespace IME
         return atan2f(x, y);
     }
 
+    inline real32 coTangent(real32 value) {
+        return 1.0f / tanf(value);
+    }
+
     inline real32 
     sinReal32(real32 angle) {
         return sinf(angle);

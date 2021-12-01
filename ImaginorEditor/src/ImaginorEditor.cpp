@@ -137,10 +137,11 @@ namespace IME::Editor
         TagComponent tag;
 
         tag.tag = copyString("Entity(1)");
-        tc.transform = rotationMat4({0.0f, 0.0f, toRadians(45.0f)}) * transformMat4<real32>({0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f});
+        tc.transform = transformMat4<real32>({0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 1.0f});
         sc.shader = state.quadshader;
+        sc.textureid = 0;
         sc.texture = 0;
-        sc.color = {0.0f, 1.0f, 1.0f, 1.0f};
+        sc.color = {1.0f, 0.0f, 0.0f, 1.0f};
 
         stateptr->sceneregistry.init();
 
@@ -149,11 +150,13 @@ namespace IME::Editor
         stateptr->sceneregistry.addComponent<SpriteRendererComponent>(state.entity1, sc);
 
         real32 aspectratio = (real32)platform.window.width / (real32)platform.window.height;
-        mat4 projection = OrthographicMat4(-10.0f, 10.0f, -10 / aspectratio, 10 / aspectratio, -100.0f, 100.0f);
+        mat4 projection = perspectiveMat4(70.0f, -0.1, -100.0f, aspectratio); //OrthographicMat4(-10.0f, 10.0f, -10 / aspectratio, 10 / aspectratio, -100.0f, 100.0f);
 
         stateptr->editorcamera.forward = {0.0f, 0.0f, -1.0f};
-        stateptr->editorcamera.position = {0.0f, 0.0f, 0.0f};
+        stateptr->editorcamera.position = {0.0f, 0.0f, 10.0f};
         stateptr->editorcamera.projection = projection;
+
+        state.lastmousepos =  { (real32)platform.mouse.relativemousepos.x, (real32)platform.mouse.relativemousepos.y };
 
         mat4 viewprojection = calculateViewProjection(stateptr->editorcamera, {0.0f, 1.0f, 0.0f});
 
@@ -162,12 +165,11 @@ namespace IME::Editor
         stateptr->texture = loadColorTexture8("hat32x32.png", platform, 0);
 
         tag.tag = copyString("Entity(2)");
-        tc.transform = transformMat4<real32>({0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f});
+        tc.transform = transformMat4<real32>({0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f});
         sc.shader = state.quadshader;
-        sc.textureid = stateptr->texture.texture;
-        sc.texture = &stateptr->texture;
-        
-        sc.color = {1.0f, 0.0f, 1.0f, 1.0f};
+        sc.textureid = 0;
+        sc.texture = 0;    
+        sc.color = {0.0f, 0.0f, 1.0f, 1.0f};
 
         stateptr->sceneregistry.addComponent<TagComponent>(entity2, tag);
         stateptr->sceneregistry.addComponent<TransformComponent>(entity2, tc);
@@ -195,22 +197,44 @@ namespace IME::Editor
         EditorState* stateptr = (EditorState*)platform.appmemory.persistentstorage;
         CacheableState state = stateptr->cachestate;
         Event e;
+
+        vec3f worldup = {0.0f, 1.0f, 0.0f};
         
         while(platform.events.pop(&e)) {
             UI::uiOnEvent(&stateptr->uicontext, e, platform);
+            if(e.type == IME_MOUSE_MOVED) {
+                vec2f mousemoved = 0.1f *  (state.lastmousepos - platform.mouse.relativemousepos);
+                state.lastmousepos = { (real32)platform.mouse.relativemousepos.x, (real32)platform.mouse.relativemousepos.y };
+                if(absoluteReal32(mousemoved.x) > 40.0f || absoluteReal32(mousemoved.y) > 40.0f) {
+                    continue;
+                }
+
+                Quaternion yaw = quaternionFromAngleVector(toRadians(mousemoved.x), worldup);
+                stateptr->editorcamera.forward = applyQuatRotationToVec3(normalize(stateptr->editorcamera.forward), yaw);
+
+                vec3f right = crossProduct(stateptr->editorcamera.forward, worldup);
+                Quaternion pitch = quaternionFromAngleVector(toRadians(mousemoved.y), normalize(right));
+                stateptr->editorcamera.forward = normalize(applyQuatRotationToVec3(normalize(stateptr->editorcamera.forward), pitch));
+            }
         }
 
+        char buffer[256];
+        sprintf_s(buffer, 245, "(%f, %f, %f)", stateptr->editorcamera.forward.x, stateptr->editorcamera.forward.y, stateptr->editorcamera.forward.z);
+        pushDebugMessage(buffer, IME_INFO, &platform);
+
+        vec3f cameraright = crossProduct(stateptr->editorcamera.forward, worldup);
+
         if(platform.keyboard.isKeyPressed('W')) {
-            stateptr->editorcamera.position.y += 5.0f * platform.time.lastframetime;
+            stateptr->editorcamera.position += 20.0f * platform.time.lastframetime * stateptr->editorcamera.forward;
         }
         if(platform.keyboard.isKeyPressed('S')) {
-            stateptr->editorcamera.position.y -= 5.0f * platform.time.lastframetime;
+            stateptr->editorcamera.position -= 20.0f * platform.time.lastframetime * stateptr->editorcamera.forward;
         }
         if(platform.keyboard.isKeyPressed('A')) {
-            stateptr->editorcamera.position.x -= 5.0f * platform.time.lastframetime;
+            stateptr->editorcamera.position -= 5.0f * platform.time.lastframetime * cameraright;
         }
         if(platform.keyboard.isKeyPressed('D')) {
-            stateptr->editorcamera.position.x += 5.0f * platform.time.lastframetime;
+            stateptr->editorcamera.position += 5.0f * platform.time.lastframetime * cameraright;
         }
         if(platform.keyboard.isKeyPressed('Q')) {
             stateptr->editorcamera.yaw -= 45.0f * platform.time.lastframetime;
@@ -221,10 +245,10 @@ namespace IME::Editor
 
 
         real32 aspectratio = (real32)platform.window.width / (real32)platform.window.height;
-        mat4 projection = OrthographicMat4(-10.0f, 10.0f, -10 / aspectratio, 10 / aspectratio, -100.0f, 100.0f);
+        mat4 projection = perspectiveMat4(70.0f, 0.1f, 100.0f, aspectratio);
 
         stateptr->editorcamera.projection = projection;
-        mat4 viewprojection = calculateViewProjection(stateptr->editorcamera, {0.0f, 1.0f, 0.0f});
+        mat4 viewprojection = calculateViewProjection(stateptr->editorcamera, worldup);
 
         platform.gfx.setviewport(0, 0, platform.window.width, platform.window.height);
         platform.gfx.clear(IME_COLOR_BUFFER | IME_DEPTH_BUFFER);

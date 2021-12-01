@@ -33,6 +33,32 @@ namespace IME {
         return result;
     }
 
+    inline mat4 rowComposeMat4(const vec4f& v1, const vec4f& v2, const vec4f& v3, const vec4f& v4) {
+        mat4 result;
+        result.rows[0] = v1;
+        result.rows[1] = v2;
+        result.rows[2] = v3;
+        result.rows[3] = v4;
+        return result;
+
+    }
+
+    inline mat4 perspectiveMat4(real32 fov, real32 near, real32 far, real32 aspectratio) {
+
+        real32 fovr = toRadians(fov);
+        mat4 result = {0.0f};
+        result.rows[0].x = coTangent(fovr / 2.0f) / aspectratio;
+
+        result.rows[1].y = coTangent(fovr / 2);
+
+        result.rows[2].z = (near + far) / (near - far);
+        result.rows[2].w = (2 * near * far) / (near - far);
+
+        result.rows[3].z = -1.0f;
+
+        return result;
+    }
+
     inline mat4 rotationMat4(vec3f angles) {
         mat4 result;
 
