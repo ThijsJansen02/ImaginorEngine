@@ -35,7 +35,6 @@ namespace IME {
         };
     }
 
-
     inline Quaternion 
     quaternionFromMat4(const mat4& matrix) {
 
@@ -58,7 +57,6 @@ namespace IME {
 
     inline Quaternion
     quaternionFromAngleVector(real32 angle, vec3f vector) {
-
         Quaternion result;
 
         real32 ca = cosReal32(angle);
@@ -70,16 +68,20 @@ namespace IME {
         result.k = vector.z * sa;
 
         return result;
+    }
 
+    inline Quaternion
+    conjugate(const Quaternion& quat) {
+        return { -quat.x, -quat.y, -quat.z, quat.real };
     }
 
     inline Quaternion 
     operator*(const Quaternion& left, const Quaternion& right) {
         return { 
-            left.real * right.real - left.i * right.i - left.j * right.j - left.k * right.k,
             left.real * right.i + left.i * right.real + left.j * right.k - left.k * right.j,
             left.real * right.j - left.i * right.k + left.j * right.real + left.k * right.i,
-            left.real * right.k + left.i * right.j - left.j * right.i + left.k * right.real };
+            left.real * right.k + left.i * right.j - left.j * right.i + left.k * right.real,
+            left.real * right.real - left.i * right.i - left.j * right.j - left.k * right.k };
     };
 
     inline 

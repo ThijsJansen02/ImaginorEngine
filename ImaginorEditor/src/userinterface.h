@@ -162,7 +162,6 @@ namespace IME {
         return {UI::UI_WINDOW, index};
     }
 
-
     internal UI::ElementPtr 
     setupComponentView(UI::Context* context, SceneRegistry* sceneregistry, UI::StyleProperties style) {
         

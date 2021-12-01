@@ -96,6 +96,11 @@ namespace IME
         return squareRootReal32(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z);
     }
 
+    template<typename T> 
+    inline T lengthSquared(const vec3<T>& vector) {
+        return vector.x * vector.x + vector.y * vector.y + vector.z * vector.z;
+    }
+
     template<typename T>
     inline vec3<T> crossProduct(const vec3<T> &left, const vec3<T> &right) {
         vec3<T> result;

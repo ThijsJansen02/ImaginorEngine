@@ -100,7 +100,7 @@ namespace IME::Editor
             rq->commands.push_back(command);
 
         }, rq);
-    } 
+    }
 
     extern "C" IME_APPLICATION_INIT(applicationInit) { //bool32 applicationInit(ApplicationMemory memory, RenderCommands rendercommands)
 
@@ -148,6 +148,15 @@ namespace IME::Editor
         stateptr->sceneregistry.addComponent<TransformComponent>(state.entity1, tc);
         stateptr->sceneregistry.addComponent<SpriteRendererComponent>(state.entity1, sc);
 
+        real32 aspectratio = (real32)platform.window.width / (real32)platform.window.height;
+        mat4 projection = OrthographicMat4(-10.0f, 10.0f, -10 / aspectratio, 10 / aspectratio, -100.0f, 100.0f);
+
+        stateptr->editorcamera.forward = {0.0f, 0.0f, -1.0f};
+        stateptr->editorcamera.position = {0.0f, 0.0f, 0.0f};
+        stateptr->editorcamera.projection = projection;
+
+        mat4 viewprojection = calculateViewProjection(stateptr->editorcamera, {0.0f, 1.0f, 0.0f});
+
         Data::Entity entity2 = stateptr->sceneregistry.createEntity();
 
         stateptr->texture = loadColorTexture8("hat32x32.png", platform, 0);
@@ -186,13 +195,36 @@ namespace IME::Editor
         EditorState* stateptr = (EditorState*)platform.appmemory.persistentstorage;
         CacheableState state = stateptr->cachestate;
         Event e;
-
-        real32 aspectratio = (real32)platform.window.width / (real32)platform.window.height;
-        mat4 projection = OrthographicMat4(-10.0f, 10.0f, -10 / aspectratio, 10 / aspectratio, -100.0f, 100.0f);
         
         while(platform.events.pop(&e)) {
             UI::uiOnEvent(&stateptr->uicontext, e, platform);
         }
+
+        if(platform.keyboard.isKeyPressed('W')) {
+            stateptr->editorcamera.position.y += 5.0f * platform.time.lastframetime;
+        }
+        if(platform.keyboard.isKeyPressed('S')) {
+            stateptr->editorcamera.position.y -= 5.0f * platform.time.lastframetime;
+        }
+        if(platform.keyboard.isKeyPressed('A')) {
+            stateptr->editorcamera.position.x -= 5.0f * platform.time.lastframetime;
+        }
+        if(platform.keyboard.isKeyPressed('D')) {
+            stateptr->editorcamera.position.x += 5.0f * platform.time.lastframetime;
+        }
+        if(platform.keyboard.isKeyPressed('Q')) {
+            stateptr->editorcamera.yaw -= 45.0f * platform.time.lastframetime;
+        }
+        if(platform.keyboard.isKeyPressed('E')) {
+            stateptr->editorcamera.yaw += 45.0f * platform.time.lastframetime;
+        }
+
+
+        real32 aspectratio = (real32)platform.window.width / (real32)platform.window.height;
+        mat4 projection = OrthographicMat4(-10.0f, 10.0f, -10 / aspectratio, 10 / aspectratio, -100.0f, 100.0f);
+
+        stateptr->editorcamera.projection = projection;
+        mat4 viewprojection = calculateViewProjection(stateptr->editorcamera, {0.0f, 1.0f, 0.0f});
 
         platform.gfx.setviewport(0, 0, platform.window.width, platform.window.height);
         platform.gfx.clear(IME_COLOR_BUFFER | IME_DEPTH_BUFFER);
@@ -202,10 +234,10 @@ namespace IME::Editor
         Renderer2D::setBatchRendererData(&state.batchrenderdata);
         Memory::setGlobal(&state.mainmemorypool);
 
-        //start renering scene
+        //start rendering scene
         pushSpriteRenderComponentsToRQ(&stateptr->sceneregistry, &state.sceneRQ);
 
-        Renderer2D::beginScene(projection);
+        Renderer2D::beginScene(viewprojection);
         Renderer2D::setShader(state.quadshader);
 
         flushRenderQueue2D(&state.sceneRQ, platform);
@@ -213,14 +245,14 @@ namespace IME::Editor
         Renderer2D::endScene();
         Renderer2D::flush();
 
+        //render gizmo
         platform.gfx.disable(IME_DEPTH_TEST);
-
         if(stateptr->selectedentity.index != 0xFFFFFFFF) {
             TransformComponent transform = stateptr->sceneregistry.getComponent<TransformComponent>(stateptr->selectedentity);
             drawLocalSpace(transform.transform, &state.sceneRQ, state.quadshader, {0.0f, 0.0f, -1.0f});
         }
 
-        Renderer2D::beginScene(projection);
+        Renderer2D::beginScene(viewprojection);
         Renderer2D::setShader(state.quadshader);
 
         flushRenderQueue2D(&state.sceneRQ, platform);

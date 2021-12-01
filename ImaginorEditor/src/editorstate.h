@@ -2,6 +2,7 @@
 #include <ImaginorEngine/src/Imaginor.h>
 #include <ImaginorMath/src/LinearMath/linearmath.h>
 #include <datastructures/ecs/ecs.h>
+#include "editorcamera.h"
 
 namespace IME {
 
@@ -31,6 +32,8 @@ namespace IME {
         CacheableState cachestate;
 
         EulerTransform selectedtransform;
+
+        EditorCamera editorcamera;
 
         Texture texture;
         

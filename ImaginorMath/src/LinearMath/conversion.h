@@ -29,13 +29,32 @@ namespace IME {
         return result;
     }
 
-    vec4f toVec4(const vec2f& in) {
-        return {in.x, in.y, 0.0f, 0.0f};
+    inline vec4f toVec4(const vec2f& in, real32 z = 0.0f, real32 w = 0.0f) {
+        return {in.x, in.y, z, w};
     }
 
-    vec2f toVec2(const vec3f& in) {
+    inline vec2f toVec2(const vec3f& in) {
         return {in.x, in.y};
     }
 
+    inline vec4f toVec4(const vec3f& in, real32 w = 0.0f) {
+        return {in.x, in.y, in.z, w};
+    }
+
+    inline Quaternion toQuat(const vec3f& in, real32 real = 0.0f) {
+        return {in.x, in.y, in.z, real};
+    }
+
+    inline vec3f toVec3(const Quaternion& quat) {
+        return {quat.x, quat.y, quat.z};
+    }
+
+    inline vec3f
+    applyQuatRotationToVec3(const vec3f& vector, const Quaternion& quat) {
+
+        Quaternion quatvector = toQuat(vector);
+        Quaternion conjugated = conjugate(quat);
+        return toVec3(quat * quatvector * conjugated);
+    }
 
 }
