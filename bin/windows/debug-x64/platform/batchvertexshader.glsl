@@ -6,7 +6,7 @@ layout (location = 3) in float aMaterialID;
   
 out vec4 pColor; // output a color to the fragment shader
 out vec2 pTexCoords;
-out float pMaterialID;
+flat out float pMaterialID;
 
 layout (row_major, std140) uniform Matrices
 {

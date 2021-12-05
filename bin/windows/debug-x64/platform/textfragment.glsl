@@ -3,7 +3,7 @@ out vec4 FragColor;
 
 in vec4 pColor;
 in vec2 pTexCoords;
-in float pMaterialID;
+flat in float pMaterialID;
 
 uniform sampler2D textures[32];
   

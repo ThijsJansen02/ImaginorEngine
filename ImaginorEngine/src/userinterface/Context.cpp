@@ -96,8 +96,7 @@ namespace IME::UI {
         Paragraph p;
         p.props.parent = parent;
         p.textlength = strlen(text);
-        p.text = (char*)Memory::alloc(p.textlength + 1);
-        copy((byte*)text, (byte*)p.text, p.textlength + 1);
+        p.text = copyString(text);
         
         //all style related things
         p.glyphsize = style.glyphsize;
@@ -123,16 +122,9 @@ namespace IME::UI {
     ElementPtr addDiv(Context* context, ElementPtr parent, const StyleProperties& style, const char* id) {
         Div div;
         //all style related things
-        div.props.background = style.background;
-        div.props.border = style.border;
-        div.props.bordercolor = style.bordercolor;
-        div.props.padding = style.padding;
-        div.props.shader = style.shader;
-        div.props.margin = style.margin;
         div.children = Data::ArrayList_<ElementPtr, Memory::alloc, Memory::dealloc>::create(0);
-        div.props.width = style.width;
 
-        div.props.id = IME::copyString(id);
+        div.props = setStaticProperties(style, parent, id);
 
         ElementPtr result;
         result.dataptr = context->divs.add(div);
@@ -154,21 +146,13 @@ namespace IME::UI {
         fs.nvalues = nfloats;
         fs.glyphsize = style.glyphsize;
         fs.atlas = style.font;
+
+        fs.textcolor = style.textcolor;
         
         fs.taglength = strlen(tag);
-        fs.tag = (char*)Memory::alloc(fs.taglength + 1);
-        copy((byte*)tag, (byte*)fs.tag, fs.taglength + 1);
+        fs.tag = copyString(tag);
 
-        //all style related things
-        fs.props.background = style.background;
-        fs.props.border = style.border;
-        fs.props.bordercolor = style.bordercolor;
-        fs.props.padding = style.padding;
-        fs.props.shader = style.shader;
-        fs.props.margin = style.margin;
-        fs.props.width = style.width;
-
-        fs.props.id = copyString(id);
+        fs.props = setStaticProperties(style, parent, id);
 
         ElementPtr result;
         result.dataptr = context->floatsliders.add(fs);
@@ -183,33 +167,59 @@ namespace IME::UI {
         if(element.type == UI_PARAGRAPH) {
             Paragraph* el = &context->paragraphs[element.dataptr].data;
 
-            Memory::dealloc(strlen(el->text) + 1, (byte*)el->text);
-            Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
+            if(el->text) {
+                Memory::dealloc(strlen(el->text) + 1, (byte*)el->text);
+                el->text = nullptr;
+            }
+            if(el->props.id) {
+                Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
+                el->props.id = nullptr;
+            }
 
             context->paragraphs.remove(element.dataptr);
             return;
         }
+
         if(element.type == UI_FLOAT_SLIDER) {
+
             FloatSlider* el = &context->floatsliders[element.dataptr].data;
-            Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
+
+            if(el->props.id) {
+                Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
+                el->props.id = nullptr;
+            }
+            if(el->tag) {
+                Memory::dealloc(strlen(el->tag) + 1, (byte*)el->tag);
+                el->props.id = nullptr;
+            }
 
             context->floatsliders.remove(element.dataptr);
             return;
         }
+
         if(element.type == UI_DIV) {
             Div* el = &context->divs[element.dataptr].data;
-            Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
 
+            if(el->props.id) {
+                Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
+                el->props.id = nullptr;
+            }
             for(ElementPtr child : el->children) {
                 removeElementRecursive(child, context);
             }
+
             Data::ArrayList_<ElementPtr, Memory::alloc, Memory::dealloc>::destroy(el->children);
             context->divs.remove(element.dataptr);
             return;
         }
         if(element.type == UI_IMAGE) {
             Image* el = &context->images[element.dataptr].data;
-            Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
+
+            if(el->props.id) {
+                Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
+                el->props.id = nullptr;
+            }
+
             context->images.remove(element.dataptr);
         }
     }
@@ -218,67 +228,47 @@ namespace IME::UI {
         return addFloatSlider(context, parent, style, nfloats, values, tag, "");
     }
 
-    bool32 addOnUpdateFloatSlider(ElementPtr elptr, Context* context, onUpdateFloatSlider* callback) {
+    StaticElementProperties* getStaticElementProperties(ElementPtr elptr, Context* context) {
+        if(elptr.type == UI_PARAGRAPH) {
+            return &context->paragraphs[elptr.dataptr].data.props;
+        }
+        if(elptr.type == UI_FLOAT_SLIDER) {
+            return &context->floatsliders[elptr.dataptr].data.props;
+        }
+        if(elptr.type == UI_DIV) {
+            return &context->divs[elptr.dataptr].data.props;
+        }
+        if(elptr.type == UI_IMAGE) {
+            return &context->images[elptr.dataptr].data.props;
+        }
+        return nullptr;
+    }
 
-        IME_DEBUG_ASSERT_BREAK(context->floatsliders[elptr.dataptr].isoccupied, "floatslider doesnt exist!")
+    bool32 addOnUpdateToFloatSlider(ElementPtr elptr, Context* context, onUpdateFloatSlider* callback) {
+        IME_DEBUG_ASSERT_BREAK(elptr.type == UI_FLOAT_SLIDER)
         FloatSlider& fs = context->floatsliders[elptr.dataptr].data;
         fs.onupdate = callback;
         return true;
     }
 
     bool32 addOnClickToElement(ElementPtr elptr, Context* context, onClickCallback* callback) {
-        if(elptr.type == UI_PARAGRAPH) {
-            Paragraph* el = &context->paragraphs[elptr.dataptr].data;
-            el->props.onclick = callback;
-            return true;
-        }
-        if(elptr.type == UI_FLOAT_SLIDER) {
-            FloatSlider* el = &context->floatsliders[elptr.dataptr].data;
-            el->props.onclick = callback;
-            return true;
-        }
-        if(elptr.type == UI_DIV) {
-            Div* el = &context->divs[elptr.dataptr].data;
-            el->props.onclick = callback;
-            return true;
-        }
+
+        StaticElementProperties* props = getStaticElementProperties(elptr, context);
+        props->onclick = callback;
+        return true;
     }
 
     bool32 addOnHoverToElement(ElementPtr elptr, Context* context, onHoverCallback* callback) {
-        if(elptr.type == UI_PARAGRAPH) {
-            Paragraph* el = &context->paragraphs[elptr.dataptr].data;
-            el->props.onHover = callback;
-            return true;
-        }
-        if(elptr.type == UI_FLOAT_SLIDER) {
-            FloatSlider* el = &context->floatsliders[elptr.dataptr].data;
-            el->props.onHover = callback;
-            return true;
-        }
-        if(elptr.type == UI_DIV) {
-            Div* el = &context->divs[elptr.dataptr].data;
-            el->props.onHover = callback;
-            return true;
-        }
-        return false;
+        
+        StaticElementProperties* props = getStaticElementProperties(elptr, context);
+        props->onHover = callback;
+        return true;
     }
 
     bool32 addOfHoverToElement(ElementPtr elptr, Context* context, ofHoverCallback* callback) {
-        if(elptr.type == UI_PARAGRAPH) {
-            Paragraph* el = &context->paragraphs[elptr.dataptr].data;
-            el->props.ofHover = callback;
-            return true;
-        }
-        if(elptr.type == UI_FLOAT_SLIDER) {
-            FloatSlider* el = &context->floatsliders[elptr.dataptr].data;
-            el->props.ofHover = callback;
-            return true;
-        }
-        if(elptr.type == UI_DIV) {
-            Div* el = &context->divs[elptr.dataptr].data;
-            el->props.ofHover = callback;
-            return true;
-        }
+        StaticElementProperties* props = getStaticElementProperties(elptr, context);
+        props->ofHover = callback;
+        return true;
     }
 
     Bounds calculateUiComponent(Context* context, ElementPtr element, ElementPtr parent, Bounds maxbounds, real32 depth);
@@ -388,7 +378,7 @@ namespace IME::UI {
 
     void calculateUiComponents(Context* context) {
         for(uint32 i = 0; i < context->uiwindows.getCount(); i++) {
-            if(!context->uiwindows[i].isoccupied) {
+            if(!context->uiwindows.getUnchecked(i).isoccupied) {
                 continue;
             }
             calculateUiComponentsForWindow(context, context->uiwindows[i].data);
@@ -420,7 +410,7 @@ namespace IME::UI {
         
         Bounds result;
         if(element.type == UI_PARAGRAPH) {
-            IME_DEBUG_ASSERT_BREAK(context->paragraphs[element.dataptr].isoccupied, "element doesnt exist");
+
             Paragraph* p = &context->paragraphs[element.dataptr].data;
             p->props.parent = parent;
 
@@ -444,7 +434,7 @@ namespace IME::UI {
         }
 
         if(element.type == UI_DIV) {
-            IME_DEBUG_ASSERT_BREAK(context->divs[element.dataptr].isoccupied, "element doesnt exist");
+
             Div* div = &context->divs[element.dataptr].data;
 
             Bounds childspace = subtractBorderFromBounds(subtractBorderFromBounds(maxbounds, div->props.padding), div->props.margin);
@@ -452,8 +442,8 @@ namespace IME::UI {
 
             div->props.depth = depth;
 
-            for(sizeptr i = 0; i < div->children.getCount(); i++) {
-                Bounds child = calculateUiComponent(context, div->children[i], element, childspace, depth + 1);
+            for(ElementPtr el : div->children) {
+                Bounds child = calculateUiComponent(context, el, element, childspace, depth + 1);
                 childspace.topleft = { child.left, child.bottom };
                 usedspace.bottomright = { maxReal32(childspace.right, usedspace.right), childspace.top };
             }
@@ -472,7 +462,7 @@ namespace IME::UI {
         }
 
         if(element.type == UI_FLOAT_SLIDER) {
-            IME_DEBUG_ASSERT_BREAK(context->floatsliders[element.dataptr].isoccupied, "element doesnt exist");
+
             FloatSlider* fs = &context->floatsliders[element.dataptr].data;
 
             fs->props.contentbounds = subtractBorderFromBounds(subtractBorderFromBounds(maxbounds, fs->props.padding), fs->props.margin);
@@ -493,7 +483,7 @@ namespace IME::UI {
         }
 
         if(element.type == UI_IMAGE) {
-            IME_DEBUG_ASSERT_BREAK(context->images[element.dataptr].isoccupied, "element doesnt exist");
+            
             Image* i = &context->images[element.dataptr].data;
 
             Bounds maxcontentbounds = subtractBorderFromBounds(subtractBorderFromBounds(maxbounds, i->props.margin), i->props.padding);
@@ -529,7 +519,7 @@ namespace IME::UI {
     void pushElementsToRQ(const Context& context, RenderQueue2D* renderqueue, gl_id shader) {
 
         for(uint32 i = 0; i < context.uiwindows.getCount(); i++) {
-            if(context.uiwindows[i].isoccupied == false) {
+            if(context.uiwindows.getUnchecked(i).isoccupied == false) {
                 continue;
             }
 
@@ -556,7 +546,7 @@ namespace IME::UI {
         }
 
         for(sizeptr i = 0; i < context.divs.getCount(); i++) {
-        const UiElementList<Div>::DataChunk* chunk = &context.divs[i];
+        const UiElementList<Div>::DataChunk* chunk = &context.divs.getUnchecked(i);
 
             if(chunk->isoccupied) {
                 RendererCommand2D command;
@@ -569,7 +559,7 @@ namespace IME::UI {
         }
 
         for(sizeptr i = 0; i < context.paragraphs.getCount(); i++) {
-            const UiElementList<Paragraph>::DataChunk* chunk = &context.paragraphs[i];
+            const UiElementList<Paragraph>::DataChunk* chunk = &context.paragraphs.getUnchecked(i);
 
             if(chunk->isoccupied) {
                 //drawing the background
@@ -595,7 +585,7 @@ namespace IME::UI {
         }
 
         for(sizeptr i = 0; i < context.floatsliders.getCount(); i++) {
-            const UiElementList<FloatSlider>::DataChunk* chunk = &context.floatsliders[i];
+            const UiElementList<FloatSlider>::DataChunk* chunk = &context.floatsliders.getUnchecked(i);
             const FloatSlider* fs = &chunk->data;
 
             if(chunk->isoccupied) {
@@ -624,7 +614,7 @@ namespace IME::UI {
                     renderqueue->commands.push_back(command);
 
                     char buffer[16];
-                    sprintf_s(buffer, 16, "%.*g", (int32)slidervaluesize - 2,  fs->value[fs->nvalues - 1 - i]);
+                    sprintf_s(buffer, 16, "%.*g", (int32)slidervaluesize,  fs->value[fs->nvalues - 1 - i]);
 
                     drawStringFromTextureAtlas(buffer, 
                         valuebounds.topleft, 
@@ -652,7 +642,7 @@ namespace IME::UI {
         }
         for(sizeptr i = 0; i < context.images.getCount(); i++) {
 
-            const UiElementList<Image>::DataChunk* chunk = &context.images[i];
+            const UiElementList<Image>::DataChunk* chunk = &context.images.getUnchecked(i);
             const Image* fs = &chunk->data;
 
             if(chunk->isoccupied) {

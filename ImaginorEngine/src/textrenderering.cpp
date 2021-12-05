@@ -138,6 +138,7 @@ namespace IME {
             if(*str == '\n') {
                 y -= 1;
                 x = 0;
+                str++;
                 continue;
             };
             if((x + 1) * glyphsize.x > textspacewidth) {
@@ -204,6 +205,7 @@ namespace IME {
                 maxcalcwidth = x > maxcalcwidth ? x : maxcalcwidth;
                 y += 1;
                 x = 0;
+                str++;
             };
             if((x + 1) * glyphsize.x > maxwidth) {
                 maxcalcwidth = x > maxcalcwidth ? x : maxcalcwidth;

@@ -27,6 +27,7 @@ namespace IME {
         style.margin = {0.0f, 0.0f, 0.0f, 0.0f};
         style.margin.bottom = 5.0f;
         style.width = 100.0f;
+        style.padding = {0.0f, 0.0f, 0.0f, 0.0f};
 
         for(UI::ElementPtr el : rootelement.children) {
             UI::removeElementRecursive(el, context);
@@ -34,11 +35,17 @@ namespace IME {
         rootelement.children.clear();
 
         if(sceneregistry->hasComponent<TagComponent>(selected)) {
+
+            UI::ElementPtr main = UI::addDiv(context, window.rootelement, style, "tag_component");
+
+            UI::StyleProperties style_p = style;
+            style_p.padding = {3.0f, 3.0f, 3.0f, 3.0f};
+            style_p.background = {0.8f, 0.0f, 0.0f, 1.0f};
+            style_p.margin = {0.0f, 0.0f, 0.0f, 0.0f};
             TagComponent tag = sceneregistry->getComponent<TagComponent>(selected);
-            UI::addParagraph(context, window.rootelement, tag.tag, style, "tag_component");
+            UI::addParagraph(context, main, tag.tag, style_p, "tag_p");
         }
 
-        style.padding = {2.0f, 2.0f, 2.0f, 2.0f};
 
         if(sceneregistry->hasComponent<SpriteRendererComponent>(selected)) {
 
@@ -49,11 +56,13 @@ namespace IME {
             UI::StyleProperties style_p = style;
             style_p.background = {0.8f, 0.0f, 0.0f, 1.0f};
             style_p.margin = {0.0f, 0.0f, 0.0f, 0.0f};
-            UI::addParagraph(context, main, "Sprite Component", style_p);
+            style_p.padding = {3.0f, 3.0f, 3.0f, 3.0f};
+            UI::addParagraph(context, main, "Sprite Component", style_p, "sprite_title");
 
             UI::StyleProperties style_fs = style;
             style_fs.margin = {0.0f, 0.0f, 0.0f, 0.0f};
-            UI::addFloatSlider(context, main, style_fs, 4, &sc.color.x, "color");
+            style_fs.padding = {3.0f, 3.0f, 3.0f, 3.0f};
+            UI::addFloatSlider(context, main, style_fs, 4, &sc.color.x, "color", "color_fs");
 
             if(sc.texture != nullptr && sc.textureid != 0) {
 
@@ -68,6 +77,8 @@ namespace IME {
 
         if(sceneregistry->hasComponent<TransformComponent>(selected)) {
             TransformComponent& tc = sceneregistry->getComponent<TransformComponent>(selected);
+
+
             UI::ElementPtr main = UI::addDiv(context, window.rootelement, style, "transform_component");
 
             stateptr->selectedtransform = eulerTransformFromMat4(tc.transform);
@@ -75,18 +86,20 @@ namespace IME {
             UI::StyleProperties style_p = style;
             style_p.background = {0.8f, 0.0f, 0.0f, 1.0f};
             style_p.margin = {0.0f, 0.0f, 0.0f, 0.0f};
+            style_p.padding = {3.0f, 3.0f, 3.0f, 3.0f};
             UI::addParagraph(context, main, "Transform Component", style_p);
 
             UI::StyleProperties style_fs = style;
             style_fs.margin = {0.0f, 0.0f, 0.0f, 0.0f};
+            style_fs.padding = {3.0f, 3.0f, 3.0f, 3.0f};
 
-            UI::ElementPtr translation = UI::addFloatSlider(context, main, style_fs, 3, &stateptr->selectedtransform.translation.x, "translation");
-            UI::ElementPtr rotation = UI::addFloatSlider(context, main, style_fs, 3, &stateptr->selectedtransform.rotation.x, "rotation");
-            UI::ElementPtr scale = UI::addFloatSlider(context, main, style_fs, 3, &stateptr->selectedtransform.scale.x, "scale");
+            UI::ElementPtr translation = UI::addFloatSlider(context, main, style_fs, 3, &stateptr->selectedtransform.translation.x, "translation_fs");
+            UI::ElementPtr rotation = UI::addFloatSlider(context, main, style_fs, 3, &stateptr->selectedtransform.rotation.x, "rotation_fs");
+            UI::ElementPtr scale = UI::addFloatSlider(context, main, style_fs, 3, &stateptr->selectedtransform.scale.x, "scale_fs");
 
-            UI::addOnUpdateFloatSlider(translation, context, onUpdateTransform);
-            UI::addOnUpdateFloatSlider(rotation, context, onUpdateTransform);
-            UI::addOnUpdateFloatSlider(scale, context, onUpdateTransform);
+            UI::addOnUpdateToFloatSlider(translation, context, onUpdateTransform);
+            UI::addOnUpdateToFloatSlider(rotation, context, onUpdateTransform);
+            UI::addOnUpdateToFloatSlider(scale, context, onUpdateTransform);
         }
 
         UI::calculateUiComponentsForWindow(context, window);
@@ -119,7 +132,7 @@ namespace IME {
     bool32 onHoverEntity(char* id, UI::ElementPtr element, UI::Context* context, void* userptr, Event e) {
 
         UI::Paragraph& p = context->paragraphs[element.dataptr].data;
-        p.props.background = {0.2f, 0.2f, 0.2f, 1.0f};
+        p.props.background = {0.25f, 0.25f, 0.25f, 1.0f};
         return false;
 
     }
@@ -147,7 +160,6 @@ namespace IME {
         style.margin = {0.0f, 0.0f, 0.0f, 0.0f};
         style.margin.bottom = 5.0f;
         style.width = 100.0f;
-
 
         for(auto [tag, entity] : sceneregistry->view<TagComponent>()) {
 

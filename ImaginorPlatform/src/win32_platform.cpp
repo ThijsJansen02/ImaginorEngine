@@ -572,6 +572,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         keyboard.isKeyPressed = IME::win32_isKeyPressed;
         platforminterface.keyboard = keyboard;
 
+        IME::Mouse mouse;
+        mouse.isButtonPressed =IME::win32_isMouseButtonPressed;
+        platforminterface.mouse = mouse;
+
         IME::RenderCommands rendercommands;
         rendercommands.rbo_bind = IME::OpenGL::ime_glapi_bind_rbo;
         rendercommands.rbo_create = IME::OpenGL::ime_glapi_create_rbo;
@@ -703,7 +707,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
                 e.param1 = IME::IME_RIGHT_MB;
                 e.type = IME::IME_MOUSE_BUTTON_RELEASED;
 
-                pressedmousebuttons[e.param1].pressed = true;
+                pressedmousebuttons[e.param1].pressed = false;
 
                 IME::applicationevents.input.push_back(e);
             }
@@ -716,7 +720,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
                 e.param1 = IME::IME_RIGHT_MB;
                 e.type = IME::IME_MOUSE_BUTTON_PRESSED;
 
-                pressedmousebuttons[e.param1].pressed = false;
+                pressedmousebuttons[e.param1].pressed = true;
 
                 IME::applicationevents.input.push_back(e);
             }

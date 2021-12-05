@@ -73,8 +73,8 @@ namespace IME::UI {
         mat4 elementtransform;
         Bounds contentbounds;
 
-        char* id;
-        char* tags;
+        char* id = nullptr;
+        char* tags = nullptr;
 
         bool32 hovered = false;
 

@@ -35,7 +35,7 @@ namespace IME::Editor
 
         IME::mat4 transform = columnComposeMat4(
             {p1p2.x, p1p2.y, p1p2.z, 0.0f}, 
-            {perpy.x, perpy.y, perpy.y, 0.0f}, 
+            {perpy.x, perpy.y, perpy.z, 0.0f}, 
             {perpz.x, perpz.y, perpz.z, 0.0f}, 
             {middle.x, middle.y, middle.z, 1.0f});
         return transform;
@@ -120,7 +120,7 @@ namespace IME::Editor
         state.quadshader = Renderer2D::loadBatchShader("batchvertexshader.glsl", "batchfragmentshader.glsl", &platform);
 
         UI::StyleProperties style;
-        style.background = {0.7, 0.7f, 0.7f, 1.0f};
+        style.background = {0.2, 0.2f, 0.2f, 1.0f};
         style.padding = {5.0f, 5.0f, 5.0f, 5.0f};
         style.font = &stateptr->font;
         style.glyphsize = {10.0f, 12.0f};
@@ -167,9 +167,9 @@ namespace IME::Editor
         tag.tag = copyString("Entity(2)");
         tc.transform = transformMat4<real32>({0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f});
         sc.shader = state.quadshader;
-        sc.textureid = 0;
-        sc.texture = 0;    
-        sc.color = {0.0f, 0.0f, 1.0f, 1.0f};
+        sc.textureid = stateptr->texture.texture;
+        sc.texture = &stateptr->texture;
+        sc.color = {1.0f, 1.0f, 1.0f, 1.0f};
 
         stateptr->sceneregistry.addComponent<TagComponent>(entity2, tag);
         stateptr->sceneregistry.addComponent<TransformComponent>(entity2, tc);
@@ -200,27 +200,30 @@ namespace IME::Editor
 
         vec3f worldup = {0.0f, 1.0f, 0.0f};
         
+        vec2f mousemoved = 0.1f *  (state.lastmousepos - platform.mouse.relativemousepos);
+        state.lastmousepos = { (real32)platform.mouse.relativemousepos.x, (real32)platform.mouse.relativemousepos.y };
+
         while(platform.events.pop(&e)) {
             UI::uiOnEvent(&stateptr->uicontext, e, platform);
+            
+
             if(e.type == IME_MOUSE_MOVED) {
-                vec2f mousemoved = 0.1f *  (state.lastmousepos - platform.mouse.relativemousepos);
-                state.lastmousepos = { (real32)platform.mouse.relativemousepos.x, (real32)platform.mouse.relativemousepos.y };
-                if(absoluteReal32(mousemoved.x) > 40.0f || absoluteReal32(mousemoved.y) > 40.0f) {
-                    continue;
+                
+                if(platform.mouse.isButtonPressed(IME_RIGHT_MB)) {
+                    
+                    if(absoluteReal32(mousemoved.x) > 40.0f || absoluteReal32(mousemoved.y) > 40.0f) {
+                        continue;
+                    }
+
+                    Quaternion yaw = quaternionFromAngleVector(toRadians(mousemoved.x), worldup);
+                    stateptr->editorcamera.forward = applyQuatRotationToVec3(normalize(stateptr->editorcamera.forward), yaw);
+
+                    vec3f right = crossProduct(stateptr->editorcamera.forward, worldup);
+                    Quaternion pitch = quaternionFromAngleVector(toRadians(mousemoved.y), right);
+                    stateptr->editorcamera.forward = applyQuatRotationToVec3(stateptr->editorcamera.forward, pitch);
                 }
-
-                Quaternion yaw = quaternionFromAngleVector(toRadians(mousemoved.x), worldup);
-                stateptr->editorcamera.forward = applyQuatRotationToVec3(normalize(stateptr->editorcamera.forward), yaw);
-
-                vec3f right = crossProduct(stateptr->editorcamera.forward, worldup);
-                Quaternion pitch = quaternionFromAngleVector(toRadians(mousemoved.y), normalize(right));
-                stateptr->editorcamera.forward = normalize(applyQuatRotationToVec3(normalize(stateptr->editorcamera.forward), pitch));
             }
         }
-
-        char buffer[256];
-        sprintf_s(buffer, 245, "(%f, %f, %f)", stateptr->editorcamera.forward.x, stateptr->editorcamera.forward.y, stateptr->editorcamera.forward.z);
-        pushDebugMessage(buffer, IME_INFO, &platform);
 
         vec3f cameraright = crossProduct(stateptr->editorcamera.forward, worldup);
 
@@ -231,10 +234,10 @@ namespace IME::Editor
             stateptr->editorcamera.position -= 20.0f * platform.time.lastframetime * stateptr->editorcamera.forward;
         }
         if(platform.keyboard.isKeyPressed('A')) {
-            stateptr->editorcamera.position -= 5.0f * platform.time.lastframetime * cameraright;
+            stateptr->editorcamera.position -= 20.0f * platform.time.lastframetime * cameraright;
         }
         if(platform.keyboard.isKeyPressed('D')) {
-            stateptr->editorcamera.position += 5.0f * platform.time.lastframetime * cameraright;
+            stateptr->editorcamera.position += 20.0f * platform.time.lastframetime * cameraright;
         }
         if(platform.keyboard.isKeyPressed('Q')) {
             stateptr->editorcamera.yaw -= 45.0f * platform.time.lastframetime;
@@ -245,15 +248,15 @@ namespace IME::Editor
 
 
         real32 aspectratio = (real32)platform.window.width / (real32)platform.window.height;
-        mat4 projection = perspectiveMat4(70.0f, 0.1f, 100.0f, aspectratio);
+        mat4 projection = perspectiveMat4(70.0f, 0.1f, 1000.0f, aspectratio);
 
         stateptr->editorcamera.projection = projection;
         mat4 viewprojection = calculateViewProjection(stateptr->editorcamera, worldup);
 
         platform.gfx.setviewport(0, 0, platform.window.width, platform.window.height);
+
         platform.gfx.clear(IME_COLOR_BUFFER | IME_DEPTH_BUFFER);
         platform.gfx.enable(IME_DEPTH_TEST);
-
 
         Renderer2D::setBatchRendererData(&state.batchrenderdata);
         Memory::setGlobal(&state.mainmemorypool);
@@ -273,7 +276,7 @@ namespace IME::Editor
         platform.gfx.disable(IME_DEPTH_TEST);
         if(stateptr->selectedentity.index != 0xFFFFFFFF) {
             TransformComponent transform = stateptr->sceneregistry.getComponent<TransformComponent>(stateptr->selectedentity);
-            drawLocalSpace(transform.transform, &state.sceneRQ, state.quadshader, {0.0f, 0.0f, -1.0f});
+            drawLocalSpace(transform.transform, &state.sceneRQ, state.quadshader, stateptr->editorcamera.position - vec3f{ transform.transform.rows[0].w, transform.transform.rows[1].w, transform.transform.rows[2].w });
         }
 
         Renderer2D::beginScene(viewprojection);
@@ -290,6 +293,33 @@ namespace IME::Editor
         mat4 uiprojection = OrthographicMat4(0.0f, (real32)platform.window.width, -(real32)platform.window.height, 0.0f, -100.0f, 100.0f);
         UI::updateUi(&stateptr->uicontext, platform);
         UI::pushElementsToRQ(stateptr->uicontext, &state.uiRQ, state.quadshader);
+
+        Renderer2D::beginScene(uiprojection);
+        Renderer2D::setShader(state.quadshader);
+        //Renderer2D::drawQuad({0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f, 1.0f, 1.0f});
+
+        flushRenderQueue2D(&state.uiRQ, platform);
+
+        Renderer2D::endScene();
+        Renderer2D::flush();
+
+        platform.gfx.disable(IME_DEPTH_TEST);
+
+        real32 y = 0.0f;
+        char buffer[256];
+        sprintf_s(buffer, 256, "floatsliders: %zd\nparagraphs: %zd\ndivs: %zd\nimages: %zd", 
+            stateptr->uicontext.floatsliders.getCount(), 
+            stateptr->uicontext.paragraphs.getCount(), 
+            stateptr->uicontext.divs.getCount(), 
+            stateptr->uicontext.images.getCount());
+        y += drawStringFromTextureAtlas(buffer, {0.0f, y}, {10.0f, 12.0f}, stateptr->font, {1000.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, &state.uiRQ);
+
+        sprintf_s(buffer, 256, "memory used: %zd\nfragmentation: %d\nlargestpoolchunk: %d", 
+            stateptr->cachestate.mainmemorypool.used, state.mainmemorypool.poolchunkcount, state.mainmemorypool.largestpoolchunk);
+        y += drawStringFromTextureAtlas(buffer, {0.0f, y}, {10.0f, 12.0f}, stateptr->font, {1000.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, &state.uiRQ);
+
+        stateptr->uicontext.paragraphs.toString(buffer, 256);
+        y += drawStringFromTextureAtlas(buffer, {0.0f, y}, {10.0f, 12.0f}, stateptr->font, {1000.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, &state.uiRQ);
 
         Renderer2D::beginScene(uiprojection);
         Renderer2D::setShader(state.quadshader);
