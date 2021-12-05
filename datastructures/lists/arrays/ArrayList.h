@@ -72,7 +72,7 @@ namespace IME::Data {
 
         inline void push_back(const T& data) {
             if(m_Count + 1 > m_Capacity) {
-                resize((m_Capacity + 1) * 1.5f);
+                resize((sizeptr)((real32)(m_Capacity + 1) * 1.5f));
             }
             m_Data[m_Count++] = data;
         }

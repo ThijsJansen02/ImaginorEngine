@@ -67,7 +67,7 @@ namespace IME::UI {
 
         props.shader = style.shader;
 
-        props.id = copyString(id);
+        props.id.set(id);
 
         return props;
     }
@@ -96,7 +96,7 @@ namespace IME::UI {
         Paragraph p;
         p.props.parent = parent;
         p.textlength = strlen(text);
-        p.text = copyString(text);
+        p.text.set(text);
         
         //all style related things
         p.glyphsize = style.glyphsize;
@@ -148,9 +148,7 @@ namespace IME::UI {
         fs.atlas = style.font;
 
         fs.textcolor = style.textcolor;
-        
-        fs.taglength = strlen(tag);
-        fs.tag = copyString(tag);
+        fs.tag.set(tag);
 
         fs.props = setStaticProperties(style, parent, id);
 
@@ -168,12 +166,10 @@ namespace IME::UI {
             Paragraph* el = &context->paragraphs[element.dataptr].data;
 
             if(el->text) {
-                Memory::dealloc(strlen(el->text) + 1, (byte*)el->text);
-                el->text = nullptr;
+                el->text.clear();
             }
             if(el->props.id) {
-                Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
-                el->props.id = nullptr;
+                el->props.id.clear();
             }
 
             context->paragraphs.remove(element.dataptr);
@@ -185,12 +181,10 @@ namespace IME::UI {
             FloatSlider* el = &context->floatsliders[element.dataptr].data;
 
             if(el->props.id) {
-                Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
-                el->props.id = nullptr;
+                el->props.id.clear();
             }
             if(el->tag) {
-                Memory::dealloc(strlen(el->tag) + 1, (byte*)el->tag);
-                el->props.id = nullptr;
+                el->tag.clear();
             }
 
             context->floatsliders.remove(element.dataptr);
@@ -201,23 +195,24 @@ namespace IME::UI {
             Div* el = &context->divs[element.dataptr].data;
 
             if(el->props.id) {
-                Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
-                el->props.id = nullptr;
+                el->props.id.clear();
             }
             for(ElementPtr child : el->children) {
                 removeElementRecursive(child, context);
             }
-
-            Data::ArrayList_<ElementPtr, Memory::alloc, Memory::dealloc>::destroy(el->children);
+            
+            if(el->children.getCapacity() > 0) {
+                Data::ArrayList_<ElementPtr, Memory::alloc, Memory::dealloc>::destroy(el->children);
+            }
             context->divs.remove(element.dataptr);
             return;
         }
+        
         if(element.type == UI_IMAGE) {
             Image* el = &context->images[element.dataptr].data;
 
             if(el->props.id) {
-                Memory::dealloc(strlen(el->props.id) + 1, (byte*)el->props.id);
-                el->props.id = nullptr;
+                el->props.id.clear();
             }
 
             context->images.remove(element.dataptr);
@@ -415,7 +410,7 @@ namespace IME::UI {
             p->props.parent = parent;
 
             Bounds maxtextspace = subtractBorderFromBounds(subtractBorderFromBounds(maxbounds, p->props.padding), p->props.margin);
-            vec2f textsize = calculateStringSize(p->text, maxtextspace.right - maxtextspace.left, p->glyphsize, p->linespacing);
+            vec2f textsize = calculateStringSize(p->text.getCstring(), maxtextspace.right - maxtextspace.left, p->glyphsize, p->linespacing);
 
             p->props.contentbounds = {maxtextspace.topleft, {maxtextspace.topleft.x + textsize.x, maxtextspace.topleft.y - textsize.y}};
             p->props.depth = depth;
@@ -572,7 +567,7 @@ namespace IME::UI {
 
                 //drawing the content
                 drawStringFromTextureAtlas(
-                    chunk->data.text, 
+                    chunk->data.text.getCstring(), 
                     chunk->data.props.contentbounds.topleft, 
                     chunk->data.glyphsize, 
                     *chunk->data.atlas, 
@@ -629,7 +624,7 @@ namespace IME::UI {
 
                 //drawing the content
                 drawStringFromTextureAtlas(
-                    chunk->data.tag, 
+                    chunk->data.tag.getCstring(), 
                     chunk->data.props.contentbounds.topleft, 
                     chunk->data.glyphsize, 
                     *chunk->data.atlas, 

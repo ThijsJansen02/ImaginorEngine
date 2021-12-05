@@ -56,7 +56,9 @@ namespace IME::Data {
         sizeptr add(const T& element) {
             sizeptr result = m_Firstopenspot;
             m_Data[m_Firstopenspot++] = {element, true};
-            m_Count++;
+            if(m_Firstopenspot - 1 == m_Count) {
+                m_Count++;
+            }
             while(true) {
                 for(; m_Firstopenspot < m_Capacity; m_Firstopenspot++) {
                     if(m_Data[m_Firstopenspot].isoccupied == false) {
@@ -130,12 +132,14 @@ namespace IME::Data {
             ptr[1] = '\0';
             return buffer;
         }
-    private:
-        
+
         sizeptr m_Count;
         sizeptr m_Capacity;
         sizeptr m_Firstopenspot;
         DataChunk* m_Data;
+
+    private:
+        
     };
 
 }

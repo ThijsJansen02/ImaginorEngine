@@ -87,11 +87,11 @@ namespace IME
 
     inline void
     copy(byte* src, byte* dst, sizeptr size) {
-        /*
+        
         for (int64 i = size - 1; i >= 0; i--) {
             dst[i] = src[i];
-        }*/
+        }
 
-        memcpy((void*)dst, (void*)src, size);
+        //memcpy((void*)dst, (void*)src, size);
     } 
 }

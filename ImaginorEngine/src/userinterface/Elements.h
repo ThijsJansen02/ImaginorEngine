@@ -6,11 +6,14 @@
 #include "../memory.h"
 #include "../textrenderering.h"
 #include "../assets.h"
+#include "datastructures/strings/string.h"
 
 namespace IME::UI {
 
     typedef uint32 gl_id;
     struct Context;
+
+    typedef Data::String<Memory::alloc, Memory::dealloc> String;
 
     enum elementtype {
         UI_PARAGRAPH,
@@ -25,11 +28,11 @@ namespace IME::UI {
         sizeptr dataptr;
     };
 
-    typedef bool32 onClickCallback(char* id, ElementPtr element, Context* context, void* userptr, Event e);
-    typedef bool32 onHoverCallback(char* id, ElementPtr element, Context* context, void* userptr, Event e);
-    typedef bool32 ofHoverCallback(char* id, ElementPtr element, Context* context, void* userptr, Event e);
+    typedef bool32 onClickCallback(const String& id, ElementPtr element, Context* context, void* userptr, Event e);
+    typedef bool32 onHoverCallback(const String& id, ElementPtr element, Context* context, void* userptr, Event e);
+    typedef bool32 ofHoverCallback(const String& id, ElementPtr element, Context* context, void* userptr, Event e);
 
-    typedef bool32 onUpdateFloatSlider(char* id, ElementPtr element, real32* floats, uint32 nfloats, Context* context, void* userptr, Event e);
+    typedef bool32 onUpdateFloatSlider(const String& id, ElementPtr element, real32* floats, uint32 nfloats, Context* context, void* userptr, Event e);
 
     struct Padding {
         real32 left;
@@ -73,8 +76,8 @@ namespace IME::UI {
         mat4 elementtransform;
         Bounds contentbounds;
 
-        char* id = nullptr;
-        char* tags = nullptr;
+        UI::String id;
+        UI::String tags;
 
         bool32 hovered = false;
 
@@ -113,7 +116,7 @@ namespace IME::UI {
 
     struct Paragraph {
         StaticElementProperties props;
-        const char* text;
+        UI::String text;
         uint32 textlength;
         vec4f textcolor;
         vec2f glyphsize;
@@ -138,7 +141,7 @@ namespace IME::UI {
         char* character;
         uint32 nvalues;
         real32* value;
-        const char* tag;
+        UI::String tag;
         uint32 taglength;
     };
 

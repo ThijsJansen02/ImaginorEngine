@@ -48,6 +48,14 @@
             "args": [],
             "group": "build",
             "problemMatcher": []
+        },
+        {
+            "type": "shell",
+            "label": "testbuild",
+            "command": "testbuild.bat",
+            "args": [],
+            "group": "build",
+            "problemMatcher": []
         }
     ]
 }

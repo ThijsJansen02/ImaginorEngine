@@ -151,6 +151,8 @@ namespace IME {
     void
     deallocateMemory_(MemoryPool* pool, byte* data, sizeptr size) {
 
+        IME_DEBUG_ASSERT_BREAK(size > 0, "you cant deallocate 0 memory")
+
         PoolChunk newpoolchunk = {};
         newpoolchunk.base = data;
         newpoolchunk.size = size;
@@ -233,9 +235,15 @@ namespace IME {
 
     void*
     allocateMemory_(MemoryPool* pool, sizeptr datasize) {
+
         if(pool->largestpoolchunk < datasize) {
-            void* result = (byte*)pool->base + pool->used;
-            pool->used += datasize;
+
+            sizeptr* size = (sizeptr*)pool->base + pool->used;
+            void* result = (byte*)pool->base + pool->used + sizeof(sizeptr);
+
+
+            pool->used += datasize + sizeof(sizeptr);
+
             IME_DEBUG_ASSERT_BREAK(pool->used < pool->size, "")
             return result;
         } else {

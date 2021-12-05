@@ -7,7 +7,7 @@
 namespace IME {
 
     internal bool32 
-    onUpdateTransform(char* id, UI::ElementPtr element, real32* floats, uint32 nfloats, UI::Context* context, void* userptr, Event e) {
+    onUpdateTransform(const UI::String& id, UI::ElementPtr element, real32* floats, uint32 nfloats, UI::Context* context, void* userptr, Event e) {
 
         EditorState* stateptr = (EditorState*)userptr;
         TransformComponent& tc = stateptr->sceneregistry.getComponent<TransformComponent>(stateptr->selectedentity);
@@ -93,9 +93,9 @@ namespace IME {
             style_fs.margin = {0.0f, 0.0f, 0.0f, 0.0f};
             style_fs.padding = {3.0f, 3.0f, 3.0f, 3.0f};
 
-            UI::ElementPtr translation = UI::addFloatSlider(context, main, style_fs, 3, &stateptr->selectedtransform.translation.x, "translation_fs");
-            UI::ElementPtr rotation = UI::addFloatSlider(context, main, style_fs, 3, &stateptr->selectedtransform.rotation.x, "rotation_fs");
-            UI::ElementPtr scale = UI::addFloatSlider(context, main, style_fs, 3, &stateptr->selectedtransform.scale.x, "scale_fs");
+            UI::ElementPtr translation = UI::addFloatSlider(context, main, style_fs, 3, &stateptr->selectedtransform.translation.x, "translation", "translation_fs");
+            UI::ElementPtr rotation = UI::addFloatSlider(context, main, style_fs, 3, &stateptr->selectedtransform.rotation.x, "rotation", "rotation_fs");
+            UI::ElementPtr scale = UI::addFloatSlider(context, main, style_fs, 3, &stateptr->selectedtransform.scale.x, "scale", "scale_fs");
 
             UI::addOnUpdateToFloatSlider(translation, context, onUpdateTransform);
             UI::addOnUpdateToFloatSlider(rotation, context, onUpdateTransform);
@@ -105,11 +105,11 @@ namespace IME {
         UI::calculateUiComponentsForWindow(context, window);
     }
 
-    bool32 onEntityClick(char* id, UI::ElementPtr element, UI::Context* context, void* userptr, Event e) {
+    bool32 onEntityClick(const UI::String& id, UI::ElementPtr element, UI::Context* context, void* userptr, Event e) {
 
         EditorState* stateptr = (EditorState*)userptr;
 
-        uint32 entityid = (uint32)atoi(id);
+        uint32 entityid = (uint32)atoi(id.getCstring());
         stateptr->selectedentity = {entityid};
 
         UI::Paragraph& p = context->paragraphs[element.dataptr].data;
@@ -129,7 +129,7 @@ namespace IME {
 
         return false;
     }
-    bool32 onHoverEntity(char* id, UI::ElementPtr element, UI::Context* context, void* userptr, Event e) {
+    bool32 onHoverEntity(const UI::String& id, UI::ElementPtr element, UI::Context* context, void* userptr, Event e) {
 
         UI::Paragraph& p = context->paragraphs[element.dataptr].data;
         p.props.background = {0.25f, 0.25f, 0.25f, 1.0f};
@@ -137,7 +137,7 @@ namespace IME {
 
     }
 
-    bool32 ofHoverEntity(char* id, UI::ElementPtr element, UI::Context* context, void* userptr, Event e) {
+    bool32 ofHoverEntity(const UI::String& id, UI::ElementPtr element, UI::Context* context, void* userptr, Event e) {
 
         UI::Paragraph& p = context->paragraphs[element.dataptr].data;
         p.props.background = {0.3f, 0.3f, 0.3f, 1.0f};

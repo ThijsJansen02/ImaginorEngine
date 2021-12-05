@@ -31,7 +31,8 @@
 			"vector": "cpp",
 			"cmath": "cpp",
 			"system_error": "cpp",
-			"array": "cpp"
+			"array": "cpp",
+			"xmemory": "cpp"
 		}
 	}
 }
