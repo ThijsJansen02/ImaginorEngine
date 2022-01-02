@@ -10,12 +10,19 @@
 
 namespace IME::UI {
 
-    typedef uint32 gl_id;
     struct Context;
+    typedef uint32 gl_id;
 
-    typedef Data::String<Memory::alloc, Memory::dealloc> String;
+    inline byte* testalloc(sizeptr size) {
+        return (byte*)malloc(size);
+    }
+
+    inline void testdealloc(sizeptr size, byte* data) {
+        free(data);
+    }
 
     enum elementtype {
+        UI_NONE = 0,
         UI_PARAGRAPH,
         UI_DIV,
         UI_FLOAT_SLIDER,
@@ -27,6 +34,11 @@ namespace IME::UI {
         elementtype type;
         sizeptr dataptr;
     };
+
+    typedef Data::String<Memory::alloc, Memory::dealloc> String;
+
+    template<typename T>
+    using ArrayList = Data::ArrayList_<T, Memory::alloc, Memory::dealloc>;
 
     typedef bool32 onClickCallback(const String& id, ElementPtr element, Context* context, void* userptr, Event e);
     typedef bool32 onHoverCallback(const String& id, ElementPtr element, Context* context, void* userptr, Event e);
@@ -73,7 +85,9 @@ namespace IME::UI {
         gl_id shader;
         real32 depth;
 
-        mat4 elementtransform;
+        vec2f backgroundsize;
+        vec2f backgroundpos;
+
         Bounds contentbounds;
 
         UI::String id;
@@ -113,6 +127,17 @@ namespace IME::UI {
         real32 absoluteheight = 0.0f;
     };
 
+    struct Window {
+        Bounds bounds;
+        Context* context;
+        ElementPtr body;
+
+        gl_id shader;
+
+        gl_id rendertarget;
+        gl_id rendertexture;
+    };
+
 
     struct Paragraph {
         StaticElementProperties props;
@@ -126,7 +151,7 @@ namespace IME::UI {
 
     struct Div {
         StaticElementProperties props;
-        Data::ArrayList_<ElementPtr, Memory::alloc, Memory::dealloc> children;
+        UI::ArrayList<ElementPtr> children;
     };
 
     struct FloatSlider {

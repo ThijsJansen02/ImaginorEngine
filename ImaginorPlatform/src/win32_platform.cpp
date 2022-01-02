@@ -599,6 +599,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
         rendercommands.texture_create = IME::OpenGL::ime_glapi_texture_create;
         rendercommands.texture_bind = IME::OpenGL::ime_glapi_texture_bind;
+        rendercommands.texture_reset = IME::OpenGL::ime_glapi_texture_reset;
 
         rendercommands.fbo_bind = IME::OpenGL::ime_glapi_fbo_bind;
         rendercommands.fbo_create = IME::OpenGL::ime_glapi_fbo_create;
@@ -611,6 +612,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
         rendercommands.drawarray = IME::OpenGL::ime_glapi_draw_array;
         rendercommands.drawindexed = IME::OpenGL::ime_glapi_draw_indexed;
+        
         platforminterface.gfx = rendercommands;
 
         IME::Time time;

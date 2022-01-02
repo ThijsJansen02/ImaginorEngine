@@ -188,6 +188,7 @@ namespace IME {
     //textures
     #define IME_GLAPI_TEXTURE_CREATE(name) gl_id name(TextureProperties properties, byte* src, gstextureformat srcformat, gsdatatype srcdatatype)
     #define IME_GLAPI_TEXTURE_BIND(name) void name(gl_id id, uint32 bindingpoint)
+    #define IME_GLAPI_TEXTURE_RESET(name) void name(TextureProperties properties, byte* src, gstextureformat srcformat, gsdatatype srcdatatype)
 
     typedef IME_GLAPI_INIT(glapi_init);
 
@@ -230,6 +231,7 @@ namespace IME {
     //textures
     typedef IME_GLAPI_TEXTURE_CREATE(glapi_texture_create);
     typedef IME_GLAPI_TEXTURE_BIND(glapi_texture_bind);
+    typedef IME_GLAPI_TEXTURE_RESET(glapi_texture_reset);
 
     //drawing
     typedef IME_GLAPI_DRAW_ARRAY(glapi_draw_array);

@@ -129,6 +129,7 @@ namespace IME::Data {
 
         void init() {
             memset(&map, 0xFFFFFFFF, sizeof(this->map));
+            memset(usedidentities, 0x00000000, sizeof(usedidentities));
         }
     	
         template<typename Comp>
@@ -181,9 +182,10 @@ namespace IME::Data {
             ComponentData<Comp>* data = (ComponentData<Comp>*)storage->data;
             data[storage->firstopenspot] = ComponentData<Comp>{ component, entity.index, true };
             map.setStorageLocation(entity.index, Comp::comp_index(), storage->firstopenspot);
-            while((bool)data[++storage->firstopenspot].used == true) { }
-        }
 
+            while((bool)data[++storage->firstopenspot].used == true && storage->firstopenspot < storage->count) { }
+        }
+ 
 
     };
 }

@@ -20,7 +20,7 @@ namespace IME {
     displayComponentsInComponentView(UI::ElementPtr windowptr, UI::Context* context, SceneRegistry* sceneregistry, UI::StyleProperties style, Data::Entity selected, EditorState* stateptr) {
 
         UI::Window& window = context->uiwindows[windowptr.dataptr].data;
-        UI::Div& rootelement = context->divs[window.rootelement.dataptr].data;
+        UI::Div& rootelement = context->divs[window.body.dataptr].data;
 
         style.background = {0.3f, 0.3f, 0.3f, 1.0f};
         style.textcolor = {0.8f, 0.8f, 0.8f, 1.0f};
@@ -36,7 +36,7 @@ namespace IME {
 
         if(sceneregistry->hasComponent<TagComponent>(selected)) {
 
-            UI::ElementPtr main = UI::addDiv(context, window.rootelement, style, "tag_component");
+            UI::ElementPtr main = UI::addDiv(context, window.body, style, "tag_component");
 
             UI::StyleProperties style_p = style;
             style_p.padding = {3.0f, 3.0f, 3.0f, 3.0f};
@@ -51,7 +51,7 @@ namespace IME {
 
             SpriteRendererComponent& sc = sceneregistry->getComponent<SpriteRendererComponent>(selected);
 
-            UI::ElementPtr main = UI::addDiv(context, window.rootelement, style, "spriterenderer_component");
+            UI::ElementPtr main = UI::addDiv(context, window.body, style, "spriterenderer_component");
 
             UI::StyleProperties style_p = style;
             style_p.background = {0.8f, 0.0f, 0.0f, 1.0f};
@@ -77,9 +77,7 @@ namespace IME {
 
         if(sceneregistry->hasComponent<TransformComponent>(selected)) {
             TransformComponent& tc = sceneregistry->getComponent<TransformComponent>(selected);
-
-
-            UI::ElementPtr main = UI::addDiv(context, window.rootelement, style, "transform_component");
+            UI::ElementPtr main = UI::addDiv(context, window.body, style, "transform_component");
 
             stateptr->selectedtransform = eulerTransformFromMat4(tc.transform);
 
@@ -145,15 +143,13 @@ namespace IME {
     }
 
     internal UI::ElementPtr
-    setupSceneView(UI::Context* context, SceneRegistry* sceneregistry, UI::StyleProperties style) {
+    setupSceneView(UI::Context* context, SceneRegistry* sceneregistry, UI::StyleProperties style, const PlatformInterface& platform) {
         
         UI::StyleProperties style_div = style;
         style_div.margin = {0.0f, 0.0f, 0.0f, 0.0f};
-        UI::Window window;
-        window.bounds = {vec2f{0.0f, 0.0f}, vec2f{300.0f, -200.0f}};
-        window.context = context;
-        window.rootelement = UI::addDiv(context, {UI::UI_WINDOW, 0}, style_div);
-        uint32 index = (uint32)context->uiwindows.add(window);
+
+        UI::ElementPtr window = UI::addWindow(context, {UI::UI_NONE, 0}, {vec2f{0.0f, 0.0f}, vec2f{300.0f, -200.0f}}, platform);
+        UI::ElementPtr windowbody = UI::addDiv(context, window, style_div);
 
         style.background = {0.3f, 0.3f, 0.3f, 1.0f};
         style.textcolor = {0.8f, 0.8f, 0.8f, 1.0f};
@@ -166,28 +162,25 @@ namespace IME {
             char buffer[32];
             sprintf_s(buffer, 32, "%d", entity.index);
 
-            UI::ElementPtr el = UI::addParagraph(context, window.rootelement, tag.tag, style, buffer);
+            UI::ElementPtr el = UI::addParagraph(context, windowbody, tag.tag, style, buffer);
             UI::addOnHoverToElement(el, context, onHoverEntity);
             UI::addOfHoverToElement(el, context, ofHoverEntity);
             UI::addOnClickToElement(el, context, onEntityClick);
         }
 
-        return {UI::UI_WINDOW, index};
+        return window;
     }
 
     internal UI::ElementPtr 
-    setupComponentView(UI::Context* context, SceneRegistry* sceneregistry, UI::StyleProperties style) {
+    setupComponentView(UI::Context* context, SceneRegistry* sceneregistry, UI::StyleProperties style, const PlatformInterface& platform) {
         
         UI::StyleProperties style_div = style;
         style_div.margin = {0.0f, 0.0f, 0.0f, 0.0f};
         
-        UI::Window window;
-        window.bounds = {vec2f{0.0f, -200.0f}, vec2f{300.0f, -800.0f}};
-        window.context = context;
-        window.rootelement = UI::addDiv(context, {UI::UI_WINDOW, 0}, style_div);
-        uint32 index = (uint32)context->uiwindows.add(window);
+        UI::ElementPtr window = UI::addWindow(context, {UI::UI_NONE, 0}, {vec2f{0.0f, -200.0f}, vec2f{300.0f, -800.0f}}, platform);
+        UI::ElementPtr body = UI::addDiv(context, window, style_div);
 
-        return {UI::UI_WINDOW, index};
+        return window;
     }
 
 

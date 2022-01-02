@@ -89,7 +89,7 @@ namespace IME::OpenGL {
         glCreateFramebuffers_ = (PFNGLCREATEFRAMEBUFFERSPROC)wglGetProcAddress("glCreateFramebuffers");
         glBindFramebuffer_ = (PFNGLBINDFRAMEBUFFERPROC)wglGetProcAddress("glBindFramebuffer");
         glTexStorage2D_ = (PFNGLTEXSTORAGE2DPROC)wglGetProcAddress("glTexStorage2D");
-        glFramebufferTexture2D_ = (PFNGLFRAMEBUFFERTEXTURE2DPROC)wglGetProcAddress("glFrameBufferTexture2D"); 
+        glFramebufferTexture2D_ = (PFNGLFRAMEBUFFERTEXTURE2DPROC)wglGetProcAddress("glFramebufferTexture2D"); 
         glGetShaderInfoLog_ = (PFNGLGETSHADERINFOLOGPROC)wglGetProcAddress("glGetShaderInfoLog");
 
         glDebugMessageCallback_ = (PFNGLDEBUGMESSAGECALLBACKPROC)wglGetProcAddress("glDebugMessageCallback");
@@ -138,7 +138,7 @@ namespace IME::OpenGL {
 
     struct FrameBufferAttachment {
         gsframebufferattachmenttype type;
-        gl_id id;
+        Texture texture;
     };
 
     struct FrameBuffer {
@@ -200,6 +200,7 @@ namespace IME::OpenGL {
         glstate.boundvao = 0;
         glstate.boundvbo = 0;
         glstate.boundshader = 0;
+        glstate.boundfbo = 0;
 
         glstate.events = eventqueue;
 
@@ -536,6 +537,25 @@ namespace IME::OpenGL {
         return glstate.boundtexture;
     }
 
+    extern "C" IME_GLAPI_TEXTURE_RESET(ime_glapi_texture_reset) { //void ime_glapi_texture_resize(uint32 newwidth, uint32 newheight)
+
+        Texture* texture = &glstate.textures.data[glstate.boundtexture];
+
+        glTexImage2D(GL_TEXTURE_2D, 0, getColorFormat(properties.format), properties.width, properties.height, 0, getColorFormat(srcformat), getDataType(srcdatatype), src);
+
+        if(properties.generatemipmaps) {
+            glGenerateMipmap_(GL_TEXTURE_2D);
+        }
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, getTextureFiltering(properties.minfilter));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, getTextureFiltering(properties.magfilter));
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, getTextureWrap(properties.S));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, getTextureWrap(properties.T));
+
+        texture->props = properties;
+    }
+
     extern "C" IME_GLAPI_TEXTURE_BIND(ime_glapi_texture_bind) { //void ime_glapi_texture_bind(gl_id id, uint32 bindingpoint)
         IME_DEBUG_ASSERT_BREAK(glstate.inited, "gl is not yet inited!")
 
@@ -549,6 +569,7 @@ namespace IME::OpenGL {
         
         FrameBuffer framebuffer;
         glCreateFramebuffers_(1, &framebuffer.id);
+        framebuffer.attachments = ArrayList<FrameBufferAttachment>::create(0);
         glBindFramebuffer_(GL_FRAMEBUFFER, framebuffer.id);
         glstate.boundfbo = addNewPrimitive(&glstate.fbos, framebuffer);
         return glstate.boundfbo;
@@ -599,8 +620,9 @@ namespace IME::OpenGL {
         FrameBuffer* framebuffer = &glstate.fbos.data[glstate.boundfbo];
 
         FrameBufferAttachment attachement;
-        attachement.id = result.id;
+        attachement.texture.id = result.id;
         attachement.type = type;
+        attachement.texture.props = properties;
         framebuffer->attachments.push_back(attachement);
 
         glstate.boundtexture = addNewPrimitive(&glstate.textures, result);
@@ -686,10 +708,12 @@ openGLMessageCallback( GLenum source,
     case GL_DEBUG_SEVERITY_HIGH:
         event.param1 = IME::IME_ERROR;
         severitystr = "HIGH";
+        IME_DEBUG_BREAK()
         break;
     case GL_DEBUG_SEVERITY_MEDIUM:
         event.param1 = IME::IME_WARN;
         severitystr = "MEDIUM";
+        IME_DEBUG_BREAK()
         break;
     case GL_DEBUG_SEVERITY_LOW:
         event.param1 = IME::IME_WARN;
@@ -715,5 +739,4 @@ openGLMessageCallback( GLenum source,
     event.param2 = (IME::uint64)buffer;
 
     user->events->output.push_back(IME::copyEvent(event));
-    //IME_DEBUG_BREAK()
 }   

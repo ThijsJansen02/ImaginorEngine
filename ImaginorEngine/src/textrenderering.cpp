@@ -86,12 +86,12 @@ namespace IME {
 
 
     real32
-    drawStringFromTextureAtlas(const char* str, vec2f start, vec2f glyphsize, TextureAtlas atlas, real32 textspacewidth, const vec4f& basecolor, RenderQueue2D* renderqueue, real32 depth) {
-        return drawStringFromTextureAtlas(str, start, glyphsize, atlas, textspacewidth, basecolor, renderqueue, depth, 0.0f);
+    drawStringFromTextureAtlas(const char* str, vec2f start, vec2f glyphsize, TextureAtlas atlas, real32 textspacewidth, const vec4f& basecolor, real32 depth) {
+        return drawStringFromTextureAtlas(str, start, glyphsize, atlas, textspacewidth, basecolor, depth, 0.0f);
     }
 
     real32
-    drawStringFromTextureAtlas(const char* str, vec2f start, vec2f glyphsize, TextureAtlas atlas, real32 textspacewidth, const vec4f& basecolor, RenderQueue2D* renderqueue, real32 depth, real32 linespacing) {
+    drawStringFromTextureAtlas(const char* str, vec2f start, vec2f glyphsize, TextureAtlas atlas, real32 textspacewidth, const vec4f& basecolor, real32 depth, real32 linespacing) {
 
         if (str == nullptr) {
             return 0.0f;
@@ -148,13 +148,16 @@ namespace IME {
             }
 
 
-            RendererCommand2D command;
-            command.shader = atlas.shader;
-            command.color = color;
-            command.transform = transformMat4(vec3f{start.x + x * glyphsize.x + glyphsize.x / 2.0f, start.y + y * (glyphsize.y + linespacing) - glyphsize.y / 2.0f, depth}, {glyphsize.x, glyphsize.y, 1.0f});
-            getUVcoordinatesFromTextureAtlas(atlas, *str, command.texcoords);
-            command.texture = atlas.texture;
-            renderqueue->commands.push_back(command);
+            
+            gl_id shader = atlas.shader;
+            vec3f pos = vec3f{start.x + x * glyphsize.x + glyphsize.x / 2.0f, start.y + y * (glyphsize.y + linespacing) - glyphsize.y / 2.0f, depth};
+            vec2f size = {glyphsize.x, glyphsize.y};
+            gl_id texture = atlas.texture;
+
+            vec2f texcoords[4];
+            getUVcoordinatesFromTextureAtlas(atlas, *str, texcoords);
+
+            Renderer2D::drawTexturedQuad(pos, size, color, texcoords);
             str++;
             x++;
         }
@@ -221,8 +224,8 @@ namespace IME {
     }
 
     real32
-    drawStringFromTextureAtlas(const char* str, vec2f start, vec2f glyphsize, TextureAtlas atlas, real32 textspacewidth, const vec4f& basecolor, RenderQueue2D* renderqueue) {
-        return drawStringFromTextureAtlas(str, start, glyphsize, atlas, textspacewidth, basecolor, renderqueue, 0.0f);
+    drawStringFromTextureAtlas(const char* str, vec2f start, vec2f glyphsize, TextureAtlas atlas, real32 textspacewidth, const vec4f& basecolor) {
+        return drawStringFromTextureAtlas(str, start, glyphsize, atlas, textspacewidth, basecolor, 0.0f);
     }
 
 }

@@ -243,6 +243,13 @@ namespace IME::Renderer2D {
         drawQuad({pos.x, pos.y, 0.0f}, size, colortint, texcoords, batchrendererdata.storedtextures - 1);
     }
 
+    void drawTexturedQuad(vec3f pos, vec2f size, vec4f colortint, vec2f* texcoords) {
+
+        BatchRenderer2DData& batchrendererdata = *batchrendererdata_;
+        drawQuad(pos, size, colortint, texcoords, batchrendererdata.storedtextures - 1);
+    }
+
+
     void drawTexturedQuad(vec2f pos, vec2f size, vec4f colortint) {
         vec2f texcoords[4] = {{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}};
         drawTexturedQuad(pos, size, colortint, texcoords);

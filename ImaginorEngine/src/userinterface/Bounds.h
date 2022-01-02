@@ -28,6 +28,16 @@ namespace IME::UI {
         return bounds.topleft + 0.5f * (bounds.bottomright - bounds.topleft);
     }
 
+    inline vec2f 
+    getPositionFromBounds(Bounds bounds) {
+        return {(bounds.left + bounds.right) / 2.0f, (bounds.top + bounds.bottom) / 2.0f };
+    }
+    
+    inline vec2f 
+    getSizeFromBounds(Bounds bounds) {
+        return { bounds.right - bounds.left, bounds.top - bounds.bottom };
+    }
+
     inline bool32 
     isInBounds(vec2f test, const Bounds& bounds) {
         return test.x > bounds.topleft.x && test.x < bounds.bottomright.x && test.y < bounds.topleft.y && test.y > bounds.bottomright.y;

@@ -34,6 +34,7 @@ namespace IME::OpenGL {
 
     extern "C" IME_GLAPI_TEXTURE_CREATE(ime_glapi_texture_create);
     extern "C" IME_GLAPI_TEXTURE_BIND(ime_glapi_texture_bind);
+    extern "C" IME_GLAPI_TEXTURE_RESET(ime_glapi_texture_reset);
 
     extern "C" IME_GLAPI_ENABLE(ime_glapi_enable);
     extern "C" IME_GLAPI_DISABLE(ime_glapi_disable);

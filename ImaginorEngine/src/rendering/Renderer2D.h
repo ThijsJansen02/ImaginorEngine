@@ -61,6 +61,7 @@ namespace IME::Renderer2D {
     void drawQuadTL(vec2f pos, vec2f size, vec4f color);
     void drawTexturedQuad(const mat4& transform, vec4f colortint, vec2f* texcoords);
     void drawTexturedQuad(vec2f pos, vec2f size, vec4f colortint, vec2f* texcoords);
+    void drawTexturedQuad(vec3f pos, vec2f size, vec4f colortint, vec2f* texcoords);
     void drawTexturedQuad(vec2f pos, vec2f size, vec4f colortint);
     void drawTexturedQuad(vec2f pos, vec2f size);
     void flush();

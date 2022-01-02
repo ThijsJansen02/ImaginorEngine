@@ -32,7 +32,8 @@
 			"cmath": "cpp",
 			"system_error": "cpp",
 			"array": "cpp",
-			"xmemory": "cpp"
+			"xmemory": "cpp",
+			"queue": "cpp"
 		}
 	}
 }

@@ -3,6 +3,7 @@
 #include <ImaginorEngine/src/memory.h>
 #include <core.h>
 #include <datastructures/strings/string.h>
+#include <datastructures/lists/arrays/ArrayList.h>
 
 #define IME_ASSERT(x) if(!(x)){ __debugbreak(); }
 
@@ -68,6 +69,7 @@ namespace IME::Test {
         IME_ASSERT(list.m_Firstopenspot == 3)
 
     }
+
     void testmemoryallocator() {
 
         MemoryArena arena;
@@ -89,67 +91,53 @@ namespace IME::Test {
         byte* ptr7 = (byte*)allocateMemory_(&pool, 256);
         byte* ptr8 = (byte*)allocateMemory_(&pool, 256);
 
-        IME_ASSERT(pool.used == 8 * 256);
-        IME_ASSERT(pool.poolchunkcount == 0)
-
-        deallocateMemory_(&pool, ptr2, 256);   
-
-        IME_ASSERT(pool.used == 8 * 256);
-        IME_ASSERT(pool.poolchunkcount == 1)     
-
-        deallocateMemory_(&pool, ptr3, 256);   
-
-        IME_ASSERT(pool.used == 8 * 256);
-        IME_ASSERT(pool.poolchunkcount == 1)
-
+        deallocateMemory_(&pool, ptr7, 256);
         deallocateMemory_(&pool, ptr5, 256);
 
-        IME_ASSERT(pool.used == 8 * 256);
-        IME_ASSERT(pool.poolchunkcount == 2)
-
-        deallocateMemory_(&pool, ptr4, 256);
-
-        IME_ASSERT(pool.used == 8 * 256);
-        IME_ASSERT(pool.poolchunkcount == 1)
-
-        ptr2 = (byte*)allocateMemory_(&pool, 256);
-        ptr3 = (byte*)allocateMemory_(&pool, 256);
-        ptr4 = (byte*)allocateMemory_(&pool, 256);
-        ptr5 = (byte*)allocateMemory_(&pool, 256);
-
-        IME_ASSERT(pool.used == 8 * 256)
-        IME_ASSERT(pool.poolchunkcount == 0)
-
-        deallocateMemory_(&pool, ptr8, 256);
-
-        IME_ASSERT(pool.used == 7 * 256)
-        IME_ASSERT(pool.poolchunkcount == 0)
-
         deallocateMemory_(&pool, ptr6, 256);
-        deallocateMemory_(&pool, ptr4, 256);
-        deallocateMemory_(&pool, ptr2, 256);
-        
-        IME_ASSERT(pool.poolchunkcount == 3)
-        IME_ASSERT(pool.used = 7 * 256)
-
-        deallocateMemory_(&pool, ptr7, 256);
-
-        IME_ASSERT(pool.poolchunkcount == 2)
-        IME_ASSERT(pool.used = 5 * 256)
-
-        deallocateMemory_(&pool, ptr3, 256);
-        allocateMemory_(&pool, 256);
-        allocateMemory_(&pool, 256);
-        allocateMemory_(&pool, 256);
 
         Data::String<Memory::alloc, Memory::dealloc> string;
-        string.set("this is a string!");
-
         Data::String<Memory::alloc, Memory::dealloc> string2;
-        string2.set("this is also a string!");
 
-        string.clear();
-        string2.clear();
+        Data::ArrayList_<uint32, Memory::alloc, Memory::dealloc> array = Data::ArrayList_<uint32, Memory::alloc, Memory::dealloc>::create(0);
+        array.push_back(24);
+        array.push_back(24);
+        array.push_back(24);
+
+        string.set("this is a string");
+        string2.set("this is also string");
+        string.set("this is a string too");
+
+        array.push_back(24);
+        string2.set("another string!");
+        array.push_back(24);
+
+        string2.set("this is also string");
+        string2.set("another string!");
+        string.set("this is a string");
+        array.push_back(24);
+        string.set("this is a string too");
+
+        string.set("this is a string");
+        string2.set("this is also string");
+        string.set("this is a string too");
+
+        array.push_back(24);
+        string2.set("another string!");
+        array.push_back(24);
+
+        string2.set("this is also string");
+        string2.set("another string!");
+        string.set("this is a string");
+        array.push_back(24);
+        string.set("this is a string too");
+
+        
+
+
+
+
+
     }
 }
 

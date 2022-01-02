@@ -134,6 +134,7 @@ namespace IME {
         //textures
         glapi_texture_create* texture_create;
         glapi_texture_bind* texture_bind;
+        glapi_texture_reset* texture_reset;
 
         //setup
         glapi_clear* clear;

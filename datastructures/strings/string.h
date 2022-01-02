@@ -18,9 +18,16 @@ namespace IME::Data {
             if(size > 1) {
                 m_Size = size;
                 m_Data = (char*)alloc(m_Size);
-                copy((byte*)string, (byte*)m_Data, m_Size);
+                IME::copy((byte*)string, (byte*)m_Data, m_Size);
             }
         }
+
+        String copy() {
+            String result;
+            result.set(this->m_Data);
+            return result;
+        }
+
         void clear() {
             dealloc(m_Size, (byte*)m_Data);
             m_Size = 0;

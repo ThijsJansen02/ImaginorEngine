@@ -1,8 +1,8 @@
 #include "context.h"
-#include "Window.h"
 #include <stdio.h>
 #include "src/textrenderering.h"
 #include "../functionality.h"
+#include "../rendering/rendering.h"
 
 namespace IME::UI {
 
@@ -47,7 +47,6 @@ namespace IME::UI {
         IME::vec2f center = centerOfBounds(bounds);
         IME::vec2f size = sizeOfBounds(bounds);
         return transformMat4(vec3f{center.x, center.y, depth}, vec3f{size.x, size.y, 1.0f});
-
     }
 
     StaticElementProperties setStaticProperties( const StyleProperties& style, ElementPtr parent, const char* id) {
@@ -70,6 +69,33 @@ namespace IME::UI {
         props.id.set(id);
 
         return props;
+    }
+
+    ElementPtr addWindow(Context* context, ElementPtr parent, const Bounds& bounds, const PlatformInterface& platform) {
+
+        Window window;
+        window.bounds = bounds;
+        window.context = context;
+
+        window.rendertarget = platform.gfx.fbo_create();
+
+        TextureProperties props;
+        props.S = IME_REPEAT;
+        props.T = IME_REPEAT;
+
+        props.generatemipmaps = false;
+        props.magfilter = IME_NEAREST;
+        props.minfilter = IME_NEAREST;
+        props.height = absoluteInt32(bounds.bottom - bounds.top);
+        props.width = absoluteInt32(bounds.right - bounds.left);
+        props.format = IME_RGBA;
+
+        window.rendertexture = platform.gfx.fbo_createtextureattachment(IME_COLOR_ATTACHMENT0, props);
+
+        ElementPtr result;
+        result.dataptr = context->uiwindows.add(window);
+        result.type = UI_WINDOW;
+        return result;
     }
 
     ElementPtr addImage(Context* context, ElementPtr parent, const StyleProperties& style, Texture* texture, const char* id) {
@@ -110,7 +136,8 @@ namespace IME::UI {
         result.dataptr = context->paragraphs.add(p);
         result.type = UI_PARAGRAPH;
         if(parent.type == UI_DIV) {
-            context->divs[parent.dataptr].data.children.push_back(result);
+            UI::Div& div = context->divs[parent.dataptr].data;
+            div.children.push_back(result);
         }
         return result;
     }
@@ -122,7 +149,7 @@ namespace IME::UI {
     ElementPtr addDiv(Context* context, ElementPtr parent, const StyleProperties& style, const char* id) {
         Div div;
         //all style related things
-        div.children = Data::ArrayList_<ElementPtr, Memory::alloc, Memory::dealloc>::create(0);
+        div.children = UI::ArrayList<ElementPtr>::create(0);
 
         div.props = setStaticProperties(style, parent, id);
 
@@ -132,6 +159,11 @@ namespace IME::UI {
         if(parent.type == UI_DIV) {
             context->divs[parent.dataptr].data.children.push_back(result);
         }
+
+        if(parent.type == UI_WINDOW) {
+            context->uiwindows[parent.dataptr].data.body = result;
+        }
+        
         return result;
     }
 
@@ -194,20 +226,22 @@ namespace IME::UI {
         if(element.type == UI_DIV) {
             Div* el = &context->divs[element.dataptr].data;
 
-            if(el->props.id) {
-                el->props.id.clear();
-            }
-            for(ElementPtr child : el->children) {
+            for (ElementPtr child : el->children) {
                 removeElementRecursive(child, context);
             }
             
             if(el->children.getCapacity() > 0) {
-                Data::ArrayList_<ElementPtr, Memory::alloc, Memory::dealloc>::destroy(el->children);
+                UI::ArrayList<ElementPtr>::destroy(el->children);
             }
+
+            if (el->props.id) {
+                el->props.id.clear();
+            }
+
             context->divs.remove(element.dataptr);
             return;
         }
-        
+
         if(element.type == UI_IMAGE) {
             Image* el = &context->images[element.dataptr].data;
 
@@ -240,7 +274,7 @@ namespace IME::UI {
     }
 
     bool32 addOnUpdateToFloatSlider(ElementPtr elptr, Context* context, onUpdateFloatSlider* callback) {
-        IME_DEBUG_ASSERT_BREAK(elptr.type == UI_FLOAT_SLIDER)
+        IME_DEBUG_ASSERT_BREAK(elptr.type == UI_FLOAT_SLIDER, "")
         FloatSlider& fs = context->floatsliders[elptr.dataptr].data;
         fs.onupdate = callback;
         return true;
@@ -316,7 +350,7 @@ namespace IME::UI {
 
                     //vec2f mousepos = mouseSpaceToUispace(platform.mouse.relativemousepos
                     if (isInBounds(mousepos, window->bounds)) {
-                        onMBpressedEvent(window->rootelement, context, mousepos, e);
+                        onMBpressedEvent(window->body, context, mousepos, e);
                     }
                 }
             }
@@ -330,7 +364,7 @@ namespace IME::UI {
                     continue;
                 }
                 if (isInBounds(mousepos, context->uiwindows[i].data.bounds)) {
-                    onMouseMovedEvent(context->uiwindows[i].data.rootelement, context, mousepos, e);
+                    onMouseMovedEvent(context->uiwindows[i].data.body, context, mousepos, e);
                 }
             }
         }
@@ -351,6 +385,22 @@ namespace IME::UI {
         vec2f mousepos = mouseSpaceToUispace(platform.mouse.relativemousepos);
         if(context->isresizing) {
             window->bounds.bottomright = mousepos;
+
+            platform.gfx.texture_bind(window->rendertexture, 0);
+
+            TextureProperties props;
+            props.S = IME_REPEAT;
+            props.T = IME_REPEAT;
+
+            props.generatemipmaps = false;
+            props.magfilter = IME_NEAREST;
+            props.minfilter = IME_NEAREST;
+            props.height = absoluteInt32(window->bounds.bottom - window->bounds.top);
+            props.width = absoluteInt32(window->bounds.right - window->bounds.left);
+            props.format = IME_RGB;
+
+            platform.gfx.texture_reset(props, nullptr, IME_RGB, IME_UINT8);
+
             calculateUiComponentsForWindow(context, *window);
         }
         if(context->isgrabbing) {
@@ -385,18 +435,20 @@ namespace IME::UI {
     void calculateUiComponentsForWindow(Context* context, const Window& window) {
         
         real32 depth = 3.0f;
-        Div* main = &context->divs[window.rootelement.dataptr].data;
+        Div* main = &context->divs[window.body.dataptr].data;
 
         Bounds mainbounds = subtractBorderFromBounds(window.bounds, main->props.margin);
         mainbounds.top -= topbarheight;
 
         main->props.contentbounds = subtractBorderFromBounds(mainbounds, main->props.padding);
-        main->props.elementtransform = calcTransformFromBounds(mainbounds, depth);
+
+        main->props.backgroundpos = getPositionFromBounds(mainbounds);
+        main->props.backgroundsize = getSizeFromBounds(mainbounds);
 
         Bounds childspace = main->props.contentbounds;
         real32 y = 0.0f;
         for(sizeptr i = 0; i < main->children.getCount(); i++) {
-            Bounds child = calculateUiComponent(context, main->children[i], window.rootelement, childspace, depth + 1);
+            Bounds child = calculateUiComponent(context, main->children[i], window.body, childspace, depth + 1.0f);
             childspace.top = child.bottom;
         }
     }
@@ -423,7 +475,8 @@ namespace IME::UI {
                 p->props.contentbounds = subtractBorderFromBounds(fullbounds, p->props.padding);
             }
 
-            p->props.elementtransform = calcTransformFromBounds(fullbounds, depth);
+            p->props.backgroundpos = getPositionFromBounds(fullbounds);
+            p->props.backgroundsize = getSizeFromBounds(fullbounds);
 
             return addBorderToBounds(fullbounds, p->props.margin);
         }
@@ -452,7 +505,10 @@ namespace IME::UI {
                 fullbounds.right = fullbounds.left + width * (div->props.width / 100.0f) - div->props.margin.right;
             }
 
-            div->props.elementtransform = calcTransformFromBounds(fullbounds, depth);
+            //setting the render bounds
+            div->props.backgroundpos = getPositionFromBounds(fullbounds);
+            div->props.backgroundsize = getSizeFromBounds(fullbounds);
+
             return addBorderToBounds(fullbounds, div->props.margin);
         }
 
@@ -472,7 +528,8 @@ namespace IME::UI {
                 fullbounds.right = fullbounds.left + width * (fs->props.width / 100.0f) - fs->props.margin.right;
             }
 
-            fs->props.elementtransform = calcTransformFromBounds(fullbounds, depth);
+            fs->props.backgroundpos = getPositionFromBounds(fullbounds);
+            fs->props.backgroundsize = getSizeFromBounds(fullbounds);
 
             return addBorderToBounds(fullbounds, fs->props.margin);
         }
@@ -503,7 +560,8 @@ namespace IME::UI {
             }
 
             Bounds fullbounds = addBorderToBounds(i->props.contentbounds, i->props.padding);
-            i->props.elementtransform = calcTransformFromBounds(fullbounds, i->props.depth);
+            i->props.backgroundpos = getPositionFromBounds(fullbounds);
+            i->props.backgroundsize = getSizeFromBounds(fullbounds);
 
             return addBorderToBounds(fullbounds, i->props.margin);
         }
@@ -511,7 +569,154 @@ namespace IME::UI {
 
     real32 inputpadding = 5.0f;
 
-    void pushElementsToRQ(const Context& context, RenderQueue2D* renderqueue, gl_id shader) {
+
+    void pushElementsToRenderSetHelper(ElementPtr element, const Context& context, ArrayList<SimpleQuadCommand>* quadrq, ArrayList<SimpleTextCommand>* textrq) {
+        
+        //draw a div element
+        if(element.type == UI_DIV) {
+            SimpleQuadCommand command;
+            Div el = context.divs[element.dataptr].data;
+
+            command.shader = el.props.shader;
+            command.texture = 0;
+            command.position = toVec3(el.props.backgroundpos, el.props.depth);
+            command.size = el.props.backgroundsize;
+
+            command.color = el.props.background;
+            quadrq->push_back(command); 
+
+            for(ElementPtr child : el.children) {
+                pushElementsToRenderSetHelper(child, context, quadrq, textrq);
+            }
+        }
+
+        //draw a paragraph
+        if(element.type == UI_PARAGRAPH) {
+            
+            Paragraph el = context.paragraphs[element.dataptr].data;
+            //drawing the background
+            {
+                SimpleQuadCommand command;
+                command.shader = el.props.shader;
+                command.texture = 0;
+                command.position = toVec3(el.props.backgroundpos, el.props.depth);
+                command.size = el.props.backgroundsize;
+
+                command.color = el.props.background;
+                quadrq->push_back(command);       
+            }
+            //drawing the content
+            {
+                SimpleTextCommand command;
+                command.text = el.text.copy();
+                command.position = toVec3(el.props.contentbounds.topleft, el.props.depth + 1);
+                command.glyphsize = el.glyphsize;
+                command.font = el.atlas;
+                command.maxwidth = el.props.contentbounds.right - el.props.contentbounds.left;
+                command.color = el.textcolor;
+                command.linespacing = el.linespacing;
+
+                textrq->push_back(command); 
+            }
+        }
+
+        //draw a float slider
+        if(element.type == UI_FLOAT_SLIDER) {
+            //drawing the background
+
+            FloatSlider el = context.floatsliders[element.type].data;
+            {
+                SimpleQuadCommand command;
+                command.shader = el.props.shader;
+                command.texture = 0;
+                command.position = toVec3(el.props.backgroundpos, el.props.depth);
+                command.size = el.props.backgroundsize;
+
+                command.color = el.props.background;
+                quadrq->push_back(command);       
+            }
+
+            //calculating space for value
+
+            Bounds valuebounds;
+            valuebounds.top = el.props.contentbounds.top;
+            valuebounds.bottom = el.props.contentbounds.bottom;
+
+            for(uint32 i = 0; i < el.nvalues; i++) {
+                valuebounds.right = el.props.contentbounds.right - i * (slidervaluesize * el.glyphsize.x + inputpadding);
+                valuebounds.left = el.props.contentbounds.right - i * (slidervaluesize * el.glyphsize.x + inputpadding) - slidervaluesize * el.glyphsize.x;
+
+                {
+                    SimpleQuadCommand command;
+                    command.shader = el.props.shader;
+                    command.texture = 0;
+                    command.position = toVec3(getPositionFromBounds(valuebounds), el.props.depth + 1);
+                    command.size = getSizeFromBounds(valuebounds);
+                    command.color = {0.0f, 0.0f, 0.0f, 1.0f};
+                    quadrq->push_back(command);
+                }
+
+                char buffer[16];
+                sprintf_s(buffer, 16, "%.*g", (int32)slidervaluesize,  el.value[el.nvalues - 1 - i]);
+                {
+                    SimpleTextCommand command;
+                    command.text.set(buffer);
+                    command.position = toVec3(valuebounds.topleft, el.props.depth + 2);
+                    command.glyphsize = el.glyphsize;
+                    command.font = el.atlas;
+                    command.maxwidth = valuebounds.right - valuebounds.left;
+                    command.color = {1.0f, 1.0f, 1.0f, 1.0f};
+                    command.linespacing = 0.0f;
+
+                    textrq->push_back(command); 
+                }
+            }
+
+            {
+                SimpleTextCommand command;
+                command.text = el.tag.copy();
+                command.position = toVec3(el.props.contentbounds.topleft, el.props.depth + 1);
+                command.glyphsize = el.glyphsize;
+                command.font = el.atlas;
+                command.maxwidth = el.props.contentbounds.right - el.props.contentbounds.left;
+                command.color = el.textcolor;
+                command.linespacing = 0.0f;
+
+                textrq->push_back(command); 
+            }        
+        }
+
+        if(element.type == UI_IMAGE) {
+            
+            Image el = context.images[element.dataptr].data;
+            //drawing the background
+            {
+                SimpleQuadCommand command;
+                command.shader = el.props.shader;
+                command.texture = 0;
+                command.position = toVec3(el.props.backgroundpos, el.props.depth);
+                command.size = el.props.backgroundsize;
+                command.color = el.props.background;
+
+                command.color = el.props.background;
+                quadrq->push_back(command);       
+            }
+
+            {
+                SimpleQuadCommand command;
+                command.shader = el.props.shader;
+                command.texture = el.image;
+                command.position = toVec3(getPositionFromBounds(el.props.contentbounds), el.props.depth + 1);
+                command.size = getSizeFromBounds(el.props.contentbounds);
+                command.color = {1.0f, 1.0f, 1.0f, 1.0f};
+    
+                quadrq->push_back(command);         
+            }
+        }
+
+    }
+
+    void pushElementsToRenderSet(const Context& context, RenderSet* renderset, gl_id compositshader, PlatformInterface platform) {
 
         for(uint32 i = 0; i < context.uiwindows.getCount(); i++) {
             if(context.uiwindows.getUnchecked(i).isoccupied == false) {
@@ -520,148 +725,101 @@ namespace IME::UI {
 
             const Window& window = context.uiwindows[i].data;
 
-            RendererCommand2D command;
+            ArrayList<SimpleQuadCommand> quadrq = ArrayList<SimpleQuadCommand>::create(0);
+            ArrayList<SimpleTextCommand> textrq = ArrayList<SimpleTextCommand>::create(0);
+
+            SimpleQuadCommand command;
 
             Bounds topbar = window.bounds;
             topbar.bottom = topbar.top - topbarheight;
 
-            mat4 transform = calcTransformFromBounds(topbar, 2.0f);
-            command.shader = shader;
+            command.shader = compositshader;
             command.texture = 0;
-            command.transform = transform;
+            command.position = toVec3(getPositionFromBounds(topbar), 1.0f);
+            command.size = getSizeFromBounds(topbar);
             command.color = {0.0f, 0.0f, 1.0f, 1.0f};
-            renderqueue->commands.push_back(command);   
+            quadrq.push_back(command);
 
-            transform = calcTransformFromBounds(window.bounds, 1.0f);
-            command.shader = shader;
+            command.shader = compositshader;
             command.texture = 0;
-            command.transform = transform;
+            command.position = toVec3(getPositionFromBounds(window.bounds), 0.0f);
+            command.size = getSizeFromBounds(window.bounds);
             command.color = {1.0f, 1.0f, 1.0f, 1.0f};
-            renderqueue->commands.push_back(command);   
-        }
+            quadrq.push_back(command);
 
-        for(sizeptr i = 0; i < context.divs.getCount(); i++) {
-        const UiElementList<Div>::DataChunk* chunk = &context.divs.getUnchecked(i);
-
-            if(chunk->isoccupied) {
-                RendererCommand2D command;
-                command.shader = chunk->data.props.shader;
-                command.texture = 0;
-                command.transform = chunk->data.props.elementtransform;
-                command.color = chunk->data.props.background;
-                renderqueue->commands.push_back(command);            
+            if(window.body.type != UI_NONE) {
+                pushElementsToRenderSetHelper(window.body, context, &quadrq, &textrq);
             }
+
+            RenderQueue quads;
+            quads.commandtype = SIMPLE_QUAD;
+            quads.data1 = (byte*)&quadrq[0];
+            quads.count1 = quadrq.getCount();
+            quads.depthtesting = true;
+            quads.rendertarget = window.rendertarget;
+            quads.updatescene = true;
+            quads.view = identity();
+            quads.projection = OrthographicMat4(window.bounds.left, window.bounds.right, window.bounds.bottom, window.bounds.top, -100.0f, 100.0f);
+            quads.viewheight = (uint32)(window.bounds.top - window.bounds.bottom);
+            quads.viewwidth = (uint32)(window.bounds.right - window.bounds.left);
+            quads.viewx = 0;
+            quads.viewy = 0;
+            quads.bufferstoclear = IME_COLOR_BUFFER | IME_DEPTH_BUFFER;
+
+            renderset->renderqueues.push_back(quads);
+
+            RenderQueue textfields;
+            textfields.commandtype = SIMPLE_TEXT;
+            textfields.data1 = (byte*)&textrq[0];
+            textfields.count1 = textrq.getCount();
+            textfields.depthtesting = true;
+            textfields.rendertarget = window.rendertarget;
+            textfields.updatescene = true;
+            textfields.view = identity();
+            textfields.projection = OrthographicMat4(window.bounds.left, window.bounds.right, window.bounds.bottom, window.bounds.top, -100.0f, 100.0f);
+            textfields.viewheight = (uint32)(window.bounds.top - window.bounds.bottom);
+            textfields.viewwidth = (uint32)(window.bounds.right - window.bounds.left);
+            textfields.viewx = 0;
+            textfields.viewy = 0;
+            textfields.bufferstoclear = 0;
+
+            renderset->renderqueues.push_back(textfields);
         }
 
-        for(sizeptr i = 0; i < context.paragraphs.getCount(); i++) {
-            const UiElementList<Paragraph>::DataChunk* chunk = &context.paragraphs.getUnchecked(i);
-
-            if(chunk->isoccupied) {
-                //drawing the background
-                RendererCommand2D command;
-                command.shader = chunk->data.props.shader;
-                command.texture = 0;
-                command.transform = chunk->data.props.elementtransform;
-                command.color = chunk->data.props.background;
-                renderqueue->commands.push_back(command);
-
-                //drawing the content
-                drawStringFromTextureAtlas(
-                    chunk->data.text.getCstring(), 
-                    chunk->data.props.contentbounds.topleft, 
-                    chunk->data.glyphsize, 
-                    *chunk->data.atlas, 
-                    chunk->data.props.contentbounds.right - chunk->data.props.contentbounds.left, 
-                    chunk->data.textcolor,
-                    renderqueue, 
-                    chunk->data.props.depth + 1, 
-                    chunk->data.linespacing);    
+        ArrayList<SimpleQuadCommand> windowrq = ArrayList<SimpleQuadCommand>::create(0);
+        for(uint32 i = 0; i < context.uiwindows.getCount(); i++) {
+            if(context.uiwindows.getUnchecked(i).isoccupied == false) {
+                continue;
             }
+
+            const Window& window = context.uiwindows[i].data;
+
+            SimpleQuadCommand command;
+            command.position = toVec3(getPositionFromBounds(window.bounds), 0.0f);
+            command.size = getSizeFromBounds(window.bounds);
+            command.shader = compositshader;
+            command.texture = window.rendertexture;
+            command.color = {1.0f, 1.0f, 1.0f, 1.0f};
+
+            windowrq.push_back(command);
         }
 
-        for(sizeptr i = 0; i < context.floatsliders.getCount(); i++) {
-            const UiElementList<FloatSlider>::DataChunk* chunk = &context.floatsliders.getUnchecked(i);
-            const FloatSlider* fs = &chunk->data;
+        RenderQueue windows;
+        windows.commandtype = SIMPLE_QUAD;
+        windows.data1 = (byte*)&windowrq[0];
+        windows.count1 = windowrq.getCount();
+        windows.depthtesting = true;
+        windows.rendertarget = 0;
+        windows.updatescene = true;
+        windows.view = identity();
+        windows.projection = OrthographicMat4(0.0f, (real32)platform.window.width, -(real32)platform.window.height, 0.0f, -100.0f, 100.0f);
+        windows.viewheight = (uint32)(platform.window.height);
+        windows.viewwidth = (uint32)(platform.window.width);
+        windows.viewx = 0;
+        windows.viewy = 0;
+        windows.bufferstoclear = IME_COLOR_BUFFER | IME_DEPTH_BUFFER;
 
-            if(chunk->isoccupied) {
-                //drawing the background
-                RendererCommand2D command;
-                command.shader = chunk->data.props.shader;
-                command.texture = 0;
-                command.transform = chunk->data.props.elementtransform;
-                command.color = chunk->data.props.background;
-                renderqueue->commands.push_back(command);
-
-                //calculating space for value
-
-                Bounds valuebounds;
-                valuebounds.top = fs->props.contentbounds.top;
-                valuebounds.bottom = fs->props.contentbounds.bottom;
-                for(uint32 i = 0; i < fs->nvalues; i++) {
-                    valuebounds.right = fs->props.contentbounds.right - i * (slidervaluesize * fs->glyphsize.x + inputpadding);
-                    valuebounds.left = fs->props.contentbounds.right - i * (slidervaluesize * fs->glyphsize.x + inputpadding) - slidervaluesize * fs->glyphsize.x;
-
-                    mat4 valueboundstransform = calcTransformFromBounds(valuebounds, fs->props.depth + 1);
-                    command.shader = chunk->data.props.shader;
-                    command.texture = 0;
-                    command.transform = valueboundstransform;
-                    command.color = {0.0f, 0.0f, 0.0f, 1.0f};
-                    renderqueue->commands.push_back(command);
-
-                    char buffer[16];
-                    sprintf_s(buffer, 16, "%.*g", (int32)slidervaluesize,  fs->value[fs->nvalues - 1 - i]);
-
-                    drawStringFromTextureAtlas(buffer, 
-                        valuebounds.topleft, 
-                        chunk->data.glyphsize, 
-                        *chunk->data.atlas, 
-                        valuebounds.right - valuebounds.left, 
-                        {1.0f, 1.0f, 1.0f, 1.0f},
-                        renderqueue, 
-                        chunk->data.props.depth + 2.0f, 
-                        0.0f);
-                }
-
-                //drawing the content
-                drawStringFromTextureAtlas(
-                    chunk->data.tag.getCstring(), 
-                    chunk->data.props.contentbounds.topleft, 
-                    chunk->data.glyphsize, 
-                    *chunk->data.atlas, 
-                    chunk->data.props.contentbounds.right - chunk->data.props.contentbounds.left, 
-                    chunk->data.textcolor,
-                    renderqueue, 
-                    chunk->data.props.depth + 1, 
-                    0.0f);
-            }
-        }
-        for(sizeptr i = 0; i < context.images.getCount(); i++) {
-
-            const UiElementList<Image>::DataChunk* chunk = &context.images.getUnchecked(i);
-            const Image* fs = &chunk->data;
-
-            if(chunk->isoccupied) {
-
-                RendererCommand2D command;
-                command.shader = chunk->data.props.shader;
-                command.texture = 0;
-                command.transform = chunk->data.props.elementtransform;
-                command.color = chunk->data.props.background;
-                renderqueue->commands.push_back(command);
-
-                command.shader = chunk->data.props.shader;
-                command.texture = fs->image;
-                command.transform = calcTransformFromBounds(fs->props.contentbounds, fs->props.depth + 1);
-                command.color = {1.0f, 1.0f, 1.0f, 1.0f};
-                command.texcoords[0] = {0.0f, 0.0f};
-                command.texcoords[1] = {1.0f, 0.0f};
-                command.texcoords[2] = {1.0f, 1.0f};
-                command.texcoords[3] = {0.0f, 1.0f};
-
-
-                renderqueue->commands.push_back(command);         
-            }
-        }
+        renderset->renderqueues.push_back(windows);
     }
 
     IME::bool32 onMouseMovedEvent(ElementPtr element, Context* context, vec2f mousepos, Event e) {

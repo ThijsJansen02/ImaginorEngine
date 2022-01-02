@@ -49,6 +49,10 @@ namespace IME {
         return {quat.x, quat.y, quat.z};
     }
 
+    inline vec3f toVec3(const vec2f& in, real32 z = 0.0f) {
+        return {in.x, in.y, z};
+    }
+
     inline vec3f
     applyQuatRotationToVec3(const vec3f& vector, const Quaternion& quat) {
 

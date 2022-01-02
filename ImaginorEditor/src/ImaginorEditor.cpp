@@ -41,6 +41,7 @@ namespace IME::Editor
         return transform;
     }
 
+#if 0
     internal void
     drawLocalSpace(mat4 transform, RenderQueue2D* rq, gl_id shader, vec3f viewdir) {
 
@@ -71,18 +72,6 @@ namespace IME::Editor
         rq->commands.push_back(command);
     }
 
-    inline void 
-    pushDebugMessage(const char* str, uint32 severity, PlatformInterface* interface) {
-
-        Event e;
-        e.destinations = IME_CONSOLE;
-        e.param1 = severity;
-        e.param2 = (uint64)str;
-        e.source = IME_APP;
-        e.type = IME_DEBUG_MESSAGE;
-        interface->events.push(e);
-    }
-
     internal void
     pushSpriteRenderComponentsToRQ(SceneRegistry* scene, RenderQueue2D* rq) {
         scene->forEachPair<SpriteRendererComponent, TransformComponent>([](SpriteRendererComponent* sr, TransformComponent* tr, void* userptr){
@@ -100,6 +89,19 @@ namespace IME::Editor
             rq->commands.push_back(command);
 
         }, rq);
+    }
+#endif
+
+    inline void 
+    pushDebugMessage(const char* str, uint32 severity, PlatformInterface* interface) {
+
+        Event e;
+        e.destinations = IME_CONSOLE;
+        e.param1 = severity;
+        e.param2 = (uint64)str;
+        e.source = IME_APP;
+        e.type = IME_DEBUG_MESSAGE;
+        interface->events.push(e);
     }
 
     extern "C" IME_APPLICATION_INIT(applicationInit) { //bool32 applicationInit(ApplicationMemory memory, RenderCommands rendercommands)
@@ -119,6 +121,9 @@ namespace IME::Editor
         state.fontshader = Renderer2D::loadBatchShader("batchvertexshader.glsl", "textfragment.glsl", &platform);
         state.quadshader = Renderer2D::loadBatchShader("batchvertexshader.glsl", "batchfragmentshader.glsl", &platform);
 
+        stateptr->renderset = initRenderSet();
+        stateptr->renderqueue = Arraylist<SimpleQuadCommand>::create(0);
+
         UI::StyleProperties style;
         style.background = {0.2, 0.2f, 0.2f, 1.0f};
         style.padding = {5.0f, 5.0f, 5.0f, 5.0f};
@@ -128,6 +133,8 @@ namespace IME::Editor
         style.shader = state.quadshader;
         style.textcolor = {0.0f, 0.0f, 0.0f, 1.0f};
         style.margin = {5.0f, 5.0f, 5.0f, 5.0f};
+
+        stateptr->sceneregistry.init();
 
         state.entity1 = stateptr->sceneregistry.createEntity();
         stateptr->selectedentity = {0xFFFFFFFF};
@@ -143,7 +150,6 @@ namespace IME::Editor
         sc.texture = 0;
         sc.color = {1.0f, 0.0f, 0.0f, 1.0f};
 
-        stateptr->sceneregistry.init();
 
         stateptr->sceneregistry.addComponent<TagComponent>(state.entity1, tag);
         stateptr->sceneregistry.addComponent<TransformComponent>(state.entity1, tc);
@@ -177,12 +183,9 @@ namespace IME::Editor
 
         stateptr->uicontext = UI::createContext();
         stateptr->uicontext.userptr = stateptr;
-        stateptr->sceneview = setupSceneView(&stateptr->uicontext, &stateptr->sceneregistry, style);
-        stateptr->componentview = setupComponentView(&stateptr->uicontext, &stateptr->sceneregistry, style);
+        stateptr->sceneview = setupSceneView(&stateptr->uicontext, &stateptr->sceneregistry, style, platform);
+        stateptr->componentview = setupComponentView(&stateptr->uicontext, &stateptr->sceneregistry, style, platform);
         UI::calculateUiComponents(&stateptr->uicontext);
-
-        state.sceneRQ = createRenderQueue2D(0);
-        state.uiRQ = createRenderQueue2D(0);
 
         stateptr->font = loadTextureAtlas("bitmap_font.png", 18, 7, platform, state.fontshader);
         stateptr->font.offset = 32;
@@ -205,7 +208,11 @@ namespace IME::Editor
 
         while(platform.events.pop(&e)) {
             UI::uiOnEvent(&stateptr->uicontext, e, platform);
-            
+            if(e.type == IME_KEY_PRESSED) {
+                if(e.param1 == 'F') {
+                    state.overlay = !state.overlay;
+                }
+            }
 
             if(e.type == IME_MOUSE_MOVED) {
                 
@@ -255,81 +262,44 @@ namespace IME::Editor
 
         platform.gfx.setviewport(0, 0, platform.window.width, platform.window.height);
 
-        platform.gfx.clear(IME_COLOR_BUFFER | IME_DEPTH_BUFFER);
-        platform.gfx.enable(IME_DEPTH_TEST);
-
         Renderer2D::setBatchRendererData(&state.batchrenderdata);
-        Memory::setGlobal(&state.mainmemorypool);
-
-        //start rendering scene
-        pushSpriteRenderComponentsToRQ(&stateptr->sceneregistry, &state.sceneRQ);
-
-        Renderer2D::beginScene(viewprojection);
-        Renderer2D::setShader(state.quadshader);
-
-        flushRenderQueue2D(&state.sceneRQ, platform);
-
-        Renderer2D::endScene();
-        Renderer2D::flush();
+        Memory::setGlobal(&state.mainmemorypool);   
+#if 0
 
         //render gizmo
         platform.gfx.disable(IME_DEPTH_TEST);
         if(stateptr->selectedentity.index != 0xFFFFFFFF) {
             TransformComponent transform = stateptr->sceneregistry.getComponent<TransformComponent>(stateptr->selectedentity);
             drawLocalSpace(transform.transform, &state.sceneRQ, state.quadshader, stateptr->editorcamera.position - vec3f{ transform.transform.rows[0].w, transform.transform.rows[1].w, transform.transform.rows[2].w });
+            
+            Renderer2D::beginScene(viewprojection);
+            Renderer2D::setShader(state.quadshader);
+
+            flushRenderQueue2D(&state.sceneRQ, platform);
+
+            Renderer2D::endScene();
+            Renderer2D::flush();
         }
-
-        Renderer2D::beginScene(viewprojection);
-        Renderer2D::setShader(state.quadshader);
-
-        flushRenderQueue2D(&state.sceneRQ, platform);
-
-        Renderer2D::endScene();
-        Renderer2D::flush();
-
-        platform.gfx.enable(IME_DEPTH_TEST);
+#endif
 
         //start rendering ui
-        mat4 uiprojection = OrthographicMat4(0.0f, (real32)platform.window.width, -(real32)platform.window.height, 0.0f, -100.0f, 100.0f);
         UI::updateUi(&stateptr->uicontext, platform);
-        UI::pushElementsToRQ(stateptr->uicontext, &state.uiRQ, state.quadshader);
+        UI::pushElementsToRenderSet(stateptr->uicontext, &stateptr->renderset, state.quadshader, platform);
+        flushRenderSet(stateptr->renderset, platform);
 
-        Renderer2D::beginScene(uiprojection);
-        Renderer2D::setShader(state.quadshader);
-        //Renderer2D::drawQuad({0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f, 1.0f, 1.0f});
+        for(RenderQueue rq : stateptr->renderset.renderqueues) {
+            if(rq.commandtype == SIMPLE_QUAD) {
+                Memory::dealloc(rq.count1 * sizeof(SimpleTextCommand), rq.data1);
+            }
+            if(rq.commandtype == COMPLEX_QUAD) {
+                Memory::dealloc(rq.count1 * sizeof(ComplexQuadCommand), rq.data1);
+            }
+            if(rq.commandtype == SIMPLE_TEXT) {
+                Memory::dealloc(rq.count1 * sizeof(SimpleTextCommand), rq.data1);
+            }
+        }
 
-        flushRenderQueue2D(&state.uiRQ, platform);
-
-        Renderer2D::endScene();
-        Renderer2D::flush();
-
-        platform.gfx.disable(IME_DEPTH_TEST);
-
-        real32 y = 0.0f;
-        char buffer[256];
-        sprintf_s(buffer, 256, "floatsliders: %zd\nparagraphs: %zd\ndivs: %zd\nimages: %zd", 
-            stateptr->uicontext.floatsliders.getCount(), 
-            stateptr->uicontext.paragraphs.getCount(), 
-            stateptr->uicontext.divs.getCount(), 
-            stateptr->uicontext.images.getCount());
-        y += drawStringFromTextureAtlas(buffer, {0.0f, y}, {10.0f, 12.0f}, stateptr->font, {1000.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, &state.uiRQ);
-
-        sprintf_s(buffer, 256, "memory used: %zd\nfragmentation: %d\nlargestpoolchunk: %d", 
-            stateptr->cachestate.mainmemorypool.used, state.mainmemorypool.poolchunkcount, state.mainmemorypool.largestpoolchunk);
-        y += drawStringFromTextureAtlas(buffer, {0.0f, y}, {10.0f, 12.0f}, stateptr->font, {1000.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, &state.uiRQ);
-
-        stateptr->uicontext.paragraphs.toString(buffer, 256);
-        y += drawStringFromTextureAtlas(buffer, {0.0f, y}, {10.0f, 12.0f}, stateptr->font, {1000.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, &state.uiRQ);
-
-        Renderer2D::beginScene(uiprojection);
-        Renderer2D::setShader(state.quadshader);
-        //Renderer2D::drawQuad({0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f, 1.0f, 1.0f});
-
-        flushRenderQueue2D(&state.uiRQ, platform);
-
-        Renderer2D::endScene();
-        Renderer2D::flush();
-
+        stateptr->renderset.renderqueues.clear();
 
         stateptr->cachestate = state;
         return true;

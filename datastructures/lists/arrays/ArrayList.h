@@ -82,18 +82,18 @@ namespace IME::Data {
                 sizeptr newcapacity = (m_Capacity + 1) * 1.5;
 
                 T* newdata = (T*)alloc(newcapacity);
-                IME::copy(data, newdata + 1, count * sizeof(T));
+                IME::copy(data, newdata + 1, m_Count * sizeof(T));
                 if(m_Data != nullptr) {
                     dealloc(m_Capacity * sizeof(T), (byte*)m_Data);
                 }
                 m_Data = newdata;
                 m_Capacity = newcapacity;
                 m_Data[0] = data;
-                ++count;
+                ++m_Count;
             } else {
-                IME::copy(data, data + 1, count * sizeof(T));
+                IME::copy(data, data + 1, m_Count * sizeof(T));
                 m_Data[0] = data;
-                ++count;
+                ++m_Count;
             }
         }
 

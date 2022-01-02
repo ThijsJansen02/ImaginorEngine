@@ -256,6 +256,10 @@ namespace IME
                     sprintf_s(buffer, 512, "\u001b[33mPLATFORM::\u001b[0m%s", (char*)event.param2);
                 }
 
+                if (event.source == IME_RENDER_API) {
+                    sprintf_s(buffer, 512, "\u001b[34mPLATFORM::\u001b[0m%s", (char*)event.param2);
+                }
+
                 if(event.source == IME_APP) {
                     sprintf_s(buffer, 512, "\u001b[32mAPPLICATION::\u001b[0m%s", (char*)event.param2);
                 }
