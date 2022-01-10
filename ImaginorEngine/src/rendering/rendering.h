@@ -85,7 +85,7 @@ namespace IME {
     
     //true is left is larger false is right is larger
     template<typename T>
-    inline bool32 
+    inline int32 
     compareQuadCommands(const T& left, const T& right) {
         if(left.shader > right.shader) {
             return true;
@@ -100,8 +100,16 @@ namespace IME {
     }
 
     template<typename T>
+    inline int32 
+    compareTextCommands(const T& left, const T& right) {
+        if((uint64)left.font > (uint64)right.font) {
+            return true;
+        }
+    }
+
+    template<typename T, int32(*cmp)(const T& left, const T& right)>
     inline T* 
-    mergeSortQuadCommandsHelper(T* commands, sizeptr count, T* res) {
+    mergeSortCommandsHelper(T* commands, sizeptr count, T* res) {
         
         if(count <= 1) {
             return commands;
@@ -109,8 +117,8 @@ namespace IME {
         sizeptr count1 = count / 2;
         sizeptr count2 = count - count1;
 
-        T* queue1 = IME::mergeSortQuadCommandsHelper(commands, count1, res);
-        T* queue2 = IME::mergeSortQuadCommandsHelper(commands + count1, count2, res);
+        T* queue1 = IME::mergeSortCommandsHelper<T, cmp>(commands, count1, res);
+        T* queue2 = IME::mergeSortCommandsHelper<T, cmp>(   commands + count1, count2, res);
 
         uint32 j1 = 0;
         uint32 j2 = 0;
@@ -129,7 +137,7 @@ namespace IME {
                 break;
             }
 
-            if(!compareQuadCommands<T>(queue1[j1], queue2[j2])) {
+            if(!cmp(queue1[j1], queue2[j2])) {
                 res[i] = queue1[j1++];
             } else {
                 res[i] = queue2[j2++];
@@ -142,17 +150,17 @@ namespace IME {
         return commands;
     }
 
-    template<typename T>
+    template<typename T, int32(*cmp)(const T& left, const T& right)>
     inline void 
-    mergeSortQuadCommands(T* commands, sizeptr count) {
+    mergeSortCommands(T* commands, sizeptr count) {
 
         T* res = (T*)Memory::alloc(count * sizeof(T));
 
         sizeptr count1 = count / 2;
         sizeptr count2 = count - count1;
 
-        T* queue1 = IME::mergeSortQuadCommandsHelper(commands, count1, res);
-        T* queue2 = IME::mergeSortQuadCommandsHelper(commands + count1, count2, res);
+        T* queue1 = IME::mergeSortCommandsHelper<T, cmp>(commands, count1, res);
+        T* queue2 = IME::mergeSortCommandsHelper<T, cmp>(commands + count1, count2, res);
 
         uint32 j1 = 0;
         uint32 j2 = 0;
@@ -171,7 +179,7 @@ namespace IME {
                 break;
             }
 
-            if(!compareQuadCommands<T>(queue1[j1], queue2[j2])) {
+            if(!cmp(queue1[j1], queue2[j2])) {
                 res[i] = queue1[j1++];
             } else {
                 res[i] = queue2[j2++];
@@ -209,15 +217,14 @@ namespace IME {
             //drawing the simple quads
             //simple quads dont have their own texcoords and have just a position and size
             if(rq.commandtype == SIMPLE_QUAD) {
-                mergeSortQuadCommands<SimpleQuadCommand>((SimpleQuadCommand*)rq.data1, rq.count1);
+                mergeSortCommands<SimpleQuadCommand, compareQuadCommands<SimpleQuadCommand>>((SimpleQuadCommand*)rq.data1, rq.count1);
 
                 SimpleQuadCommand* commands = (SimpleQuadCommand*)rq.data1;
-
-                Renderer2D::beginScene(viewprojection);
 
                 gl_id currenttexture = 0;
                 gl_id currentshader = commands[0].shader;
 
+                Renderer2D::beginScene(viewprojection);
                 Renderer2D::setShader(currentshader);
 
                 for(sizeptr i = 0; i < rq.count1; i++) {
@@ -252,9 +259,9 @@ namespace IME {
             //drawing complex quads
             //complex quads have their own texcoords and a 3d transform
             if(rq.commandtype == COMPLEX_QUAD) {
-                mergeSortQuadCommands<ComplexQuadCommand>((ComplexQuadCommand*)rq.data1, rq.count1);
+                mergeSortCommands<ComplexQuadCommand, compareQuadCommands<ComplexQuadCommand>>((ComplexQuadCommand*)rq.data1, rq.count1);
 
-                ComplexQuadCommand* commands;
+                ComplexQuadCommand* commands = (ComplexQuadCommand*)rq.data1;
 
                 gl_id currenttexture = 0;
                 gl_id currentshader = commands[0].shader;
@@ -282,6 +289,42 @@ namespace IME {
                 Renderer2D::endScene();
                 Renderer2D::flush();
             }
+
+            //drawing simple text
+            //simple text has only a 2d position
+            if(rq.commandtype == SIMPLE_TEXT) {
+                mergeSortCommands<SimpleTextCommand, compareTextCommands<SimpleTextCommand>>((SimpleTextCommand*)rq.data1, rq.count1);
+
+                SimpleTextCommand* commands = (SimpleTextCommand*)rq.data1;
+
+                TextureAtlas* currentfont = commands[0].font;
+                gl_id currentshader = commands[0].font->shader;
+                gl_id currenttexture = commands[0].font->texture;
+
+                Renderer2D::beginScene(viewprojection);
+                Renderer2D::setShader(currentshader);
+                Renderer2D::pushTexture(currenttexture);
+
+                for(uint32 i = 0; i < rq.count1; i++) {
+
+                    SimpleTextCommand command = ((SimpleTextCommand*)rq.data1)[i];
+                    if(command.font != currentfont) {
+                        currentfont = command.font;
+                        if(command.font->shader != currentshader) {
+                            currentshader = command.font->shader;
+                            Renderer2D::flushAndReset();
+                            Renderer2D::setShader(currentshader);
+                        }
+                        currenttexture = command.font->texture;
+                        Renderer2D::pushTexture(currenttexture);
+                    }
+                    drawStringFromTextureAtlas(command.text.getCstring(), toVec2(command.position), command.glyphsize, *command.font, command.maxwidth, command.color, command.position.z, command.linespacing);
+                }
+
+                Renderer2D::endScene();
+                Renderer2D::flush();
+            }
+
         }
     }
 }

@@ -604,6 +604,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         rendercommands.fbo_bind = IME::OpenGL::ime_glapi_fbo_bind;
         rendercommands.fbo_create = IME::OpenGL::ime_glapi_fbo_create;
         rendercommands.fbo_createtextureattachment = IME::OpenGL::ime_glapi_fbo_create_texture_attachment;
+        rendercommands.fbo_createrenderbufferattachment = IME::OpenGL::ime_glapi_fbo_create_rbo_attachment;
+        rendercommands.fbo_resize = IME::OpenGL::ime_glapi_fbo_resize; 
 
         rendercommands.setviewport = IME::OpenGL::ime_glapi_set_viewport;
         rendercommands.clear = IME::OpenGL::ime_glapi_clear;

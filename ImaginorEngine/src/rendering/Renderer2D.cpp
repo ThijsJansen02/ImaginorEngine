@@ -202,28 +202,28 @@ namespace IME::Renderer2D {
         vec2f halfsize = size / 2.0f;
 
         BatchVertex vertex;
-        vertex.position = { pos.x - halfsize.x, pos.y - halfsize.y };
+        vertex.position = { pos.x - halfsize.x, pos.y - halfsize.y, pos.z };
         vertex.color = color;
         vertex.texcoord = texcoords[0];
         vertex.index = (real32)textureindex;
 
         batchrendererdata.localbuffer[batchrendererdata.vertexoffset + 0] = vertex;
 
-        vertex.position = { pos.x + halfsize.x, pos.y - halfsize.y };
+        vertex.position = { pos.x + halfsize.x, pos.y - halfsize.y, pos.z };
         vertex.color = color;
         vertex.texcoord = texcoords[1];
         vertex.index = (real32)textureindex;
 
         batchrendererdata.localbuffer[batchrendererdata.vertexoffset + 1] = vertex;
 
-        vertex.position = { pos.x + halfsize.x, pos.y + halfsize.y };
+        vertex.position = { pos.x + halfsize.x, pos.y + halfsize.y, pos.z};
         vertex.color = color;
         vertex.texcoord = texcoords[2];
         vertex.index = (real32)textureindex;
 
         batchrendererdata.localbuffer[batchrendererdata.vertexoffset + 2] = vertex;
 
-        vertex.position = { pos.x - halfsize.x, pos.y + halfsize.y };
+        vertex.position = { pos.x - halfsize.x, pos.y + halfsize.y, pos.z};
         vertex.color = color;
         vertex.texcoord = texcoords[3];
         vertex.index = (real32)textureindex;

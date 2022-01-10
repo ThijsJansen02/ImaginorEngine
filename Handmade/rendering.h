@@ -36,7 +36,7 @@ namespace IME
 
     struct ImageBuffer {
 
-        ColorFragment* data = nullptr;
+    ColorFragment* data = nullptr;
 
         uint32 width = 0;
         uint32 height = 0;

@@ -246,9 +246,6 @@ namespace IME
 
                 if(event.source == IME_RENDER_API) {
                     //break;
-                    if(event.param1 == IME_INFO) {
-                        break;
-                    }
                     sprintf_s(buffer, 512, "\u001b[31mRENDER API::\u001b[0m%s", (char*)event.param2);
                 }
 

@@ -136,6 +136,7 @@ namespace IME::UI {
 
         gl_id rendertarget;
         gl_id rendertexture;
+        gl_id depthbuffer;
     };
 
 

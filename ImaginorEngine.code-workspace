@@ -33,7 +33,8 @@
 			"system_error": "cpp",
 			"array": "cpp",
 			"xmemory": "cpp",
-			"queue": "cpp"
+			"queue": "cpp",
+			"charconv": "cpp"
 		}
 	}
 }

@@ -148,11 +148,8 @@ namespace IME {
             }
 
 
-            
-            gl_id shader = atlas.shader;
             vec3f pos = vec3f{start.x + x * glyphsize.x + glyphsize.x / 2.0f, start.y + y * (glyphsize.y + linespacing) - glyphsize.y / 2.0f, depth};
             vec2f size = {glyphsize.x, glyphsize.y};
-            gl_id texture = atlas.texture;
 
             vec2f texcoords[4];
             getUVcoordinatesFromTextureAtlas(atlas, *str, texcoords);

@@ -113,7 +113,10 @@ namespace IME {
         IME_COLOR_ATTACHMENT15,
         IME_DEPTH_ATTACHMENT,
         IME_STENCIL_ATTACHMENT,
-        IME_DEPTH_STENCIL_ATTACHMENT
+        IME_DEPTH_STENCIL_ATTACHMENT,
+        IME_DEPTH_ATTACHMENT_RBO,
+        IME_STENCIL_ATTACHMENT_RBO,
+        IME_DEPTH_STENCIL_ATTACHMENT_RBO
     };
 
     struct TextureProperties {
@@ -162,9 +165,12 @@ namespace IME {
     #define IME_GLAPI_UBO_BUFFER_SUB_DATA(name) void name(byte* data, sizeptr size, sizeptr offset)
 
     //fbos
-    #define IME_GLAPI_FBO_CREATE(name) gl_id name()
+    #define IME_GLAPI_FBO_CREATE(name) gl_id name(uint32 width, uint32 height)
     #define IME_GLAPI_FBO_BIND(name) void name(gl_id id)
     #define IME_GLAPI_FBO_CREATE_TEXTURE_ATTACHMENT(name) gl_id name(gsframebufferattachmenttype type, TextureProperties properties)
+    #define IME_GLAPI_FBO_CREATE_RBO_ATTACHMENT(name) gl_id name(gstextureformat format)
+    #define IME_GLAPI_FBO_RESIZE(name) bool32 name(uint32 newwidth, uint32 newheight)
+    #define IME_GLAPI_FBO_DELETE(name) bool32 name(gl_id, bool32 deleteattachments)
 
     //drawing
     #define IME_GLAPI_DRAW_ARRAY(name) void name(gsdrawmode mode, sizeptr count)
@@ -219,6 +225,9 @@ namespace IME {
     typedef IME_GLAPI_FBO_CREATE(glapi_fbo_create);
     typedef IME_GLAPI_FBO_BIND(glapi_fbo_bind);
     typedef IME_GLAPI_FBO_CREATE_TEXTURE_ATTACHMENT(glapi_fbo_create_texture_attachment);
+    typedef IME_GLAPI_FBO_CREATE_RBO_ATTACHMENT(glapi_fbo_create_rbo_attachment);
+    typedef IME_GLAPI_FBO_RESIZE(glapi_fbo_resize);
+    typedef IME_GLAPI_FBO_DELETE(glapi_rbo_delete);
 
     //shaders
     typedef IME_GLAPI_SHADER_CREATE(glapi_shader_create);

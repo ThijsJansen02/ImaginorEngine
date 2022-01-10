@@ -50,7 +50,7 @@ namespace IME {
     }
 
     inline vec3f toVec3(const vec2f& in, real32 z = 0.0f) {
-        return {in.x, in.y, z};
+    return {in.x, in.y, z};
     }
 
     inline vec3f

@@ -77,7 +77,8 @@ namespace IME::UI {
         window.bounds = bounds;
         window.context = context;
 
-        window.rendertarget = platform.gfx.fbo_create();
+        window.rendertarget = platform.gfx.fbo_create(absoluteInt32(bounds.right - bounds.left), absoluteInt32(bounds.bottom - bounds.top));
+        platform.gfx.fbo_bind(window.rendertarget);
 
         TextureProperties props;
         props.S = IME_REPEAT;
@@ -91,6 +92,7 @@ namespace IME::UI {
         props.format = IME_RGBA;
 
         window.rendertexture = platform.gfx.fbo_createtextureattachment(IME_COLOR_ATTACHMENT0, props);
+        window.depthbuffer = platform.gfx.fbo_createrenderbufferattachment(IME_DEPTH24_STENCIL8);
 
         ElementPtr result;
         result.dataptr = context->uiwindows.add(window);
@@ -366,6 +368,16 @@ namespace IME::UI {
                 if (isInBounds(mousepos, context->uiwindows[i].data.bounds)) {
                     onMouseMovedEvent(context->uiwindows[i].data.body, context, mousepos, e);
                 }
+                if(context->isresizing) {
+
+                    Window* window = &context->uiwindows[context->selectedWindowptr].data;
+                    window->bounds.bottomright = mousepos;
+
+                    platform.gfx.fbo_bind(window->rendertarget);
+                    platform.gfx.fbo_resize(absoluteInt32(window->bounds.right - window->bounds.left), absoluteInt32(window->bounds.bottom - window->bounds.top));
+
+                    calculateUiComponentsForWindow(context, *window);
+                }
             }
         }
 
@@ -383,26 +395,6 @@ namespace IME::UI {
         
         Window* window = &context->uiwindows[context->selectedWindowptr].data;
         vec2f mousepos = mouseSpaceToUispace(platform.mouse.relativemousepos);
-        if(context->isresizing) {
-            window->bounds.bottomright = mousepos;
-
-            platform.gfx.texture_bind(window->rendertexture, 0);
-
-            TextureProperties props;
-            props.S = IME_REPEAT;
-            props.T = IME_REPEAT;
-
-            props.generatemipmaps = false;
-            props.magfilter = IME_NEAREST;
-            props.minfilter = IME_NEAREST;
-            props.height = absoluteInt32(window->bounds.bottom - window->bounds.top);
-            props.width = absoluteInt32(window->bounds.right - window->bounds.left);
-            props.format = IME_RGB;
-
-            platform.gfx.texture_reset(props, nullptr, IME_RGB, IME_UINT8);
-
-            calculateUiComponentsForWindow(context, *window);
-        }
         if(context->isgrabbing) {
             IME::vec2f windowsize = sizeOfBounds(window->bounds);
             window->bounds.topleft = mousepos - context->relativegrab;
@@ -444,6 +436,8 @@ namespace IME::UI {
 
         main->props.backgroundpos = getPositionFromBounds(mainbounds);
         main->props.backgroundsize = getSizeFromBounds(mainbounds);
+
+        main->props.depth = depth;
 
         Bounds childspace = main->props.contentbounds;
         real32 y = 0.0f;
@@ -577,13 +571,16 @@ namespace IME::UI {
             SimpleQuadCommand command;
             Div el = context.divs[element.dataptr].data;
 
-            command.shader = el.props.shader;
-            command.texture = 0;
-            command.position = toVec3(el.props.backgroundpos, el.props.depth);
-            command.size = el.props.backgroundsize;
+            if(!el.props.background.z == 0.0f) {    
+                command.shader = el.props.shader;
+                command.texture = 0;
+                command.position = toVec3(el.props.backgroundpos, el.props.depth);
+                command.size = el.props.backgroundsize;
 
-            command.color = el.props.background;
-            quadrq->push_back(command); 
+                command.color = el.props.background;
+                quadrq->push_back(command); 
+            }
+
 
             for(ElementPtr child : el.children) {
                 pushElementsToRenderSetHelper(child, context, quadrq, textrq);
@@ -624,7 +621,7 @@ namespace IME::UI {
         if(element.type == UI_FLOAT_SLIDER) {
             //drawing the background
 
-            FloatSlider el = context.floatsliders[element.type].data;
+            FloatSlider el = context.floatsliders[element.dataptr].data;
             {
                 SimpleQuadCommand command;
                 command.shader = el.props.shader;
@@ -735,16 +732,16 @@ namespace IME::UI {
 
             command.shader = compositshader;
             command.texture = 0;
-            command.position = toVec3(getPositionFromBounds(topbar), 1.0f);
-            command.size = getSizeFromBounds(topbar);
-            command.color = {0.0f, 0.0f, 1.0f, 1.0f};
+            command.position = toVec3(getPositionFromBounds(window.bounds), 0.0f);
+            command.size = getSizeFromBounds(window.bounds);
+            command.color = {1.0f, 0.0f, 1.0f, 1.0f};
             quadrq.push_back(command);
 
             command.shader = compositshader;
             command.texture = 0;
-            command.position = toVec3(getPositionFromBounds(window.bounds), 0.0f);
-            command.size = getSizeFromBounds(window.bounds);
-            command.color = {1.0f, 1.0f, 1.0f, 1.0f};
+            command.position = toVec3(getPositionFromBounds(topbar), 0.1f);
+            command.size = getSizeFromBounds(topbar);
+            command.color = {0.0f, 0.0f, 1.0f, 1.0f};
             quadrq.push_back(command);
 
             if(window.body.type != UI_NONE) {

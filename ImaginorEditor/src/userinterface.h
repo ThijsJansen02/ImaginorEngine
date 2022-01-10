@@ -37,7 +37,7 @@ namespace IME {
         if(sceneregistry->hasComponent<TagComponent>(selected)) {
 
             UI::ElementPtr main = UI::addDiv(context, window.body, style, "tag_component");
-
+ 
             UI::StyleProperties style_p = style;
             style_p.padding = {3.0f, 3.0f, 3.0f, 3.0f};
             style_p.background = {0.8f, 0.0f, 0.0f, 1.0f};
@@ -149,7 +149,7 @@ namespace IME {
         style_div.margin = {0.0f, 0.0f, 0.0f, 0.0f};
 
         UI::ElementPtr window = UI::addWindow(context, {UI::UI_NONE, 0}, {vec2f{0.0f, 0.0f}, vec2f{300.0f, -200.0f}}, platform);
-        UI::ElementPtr windowbody = UI::addDiv(context, window, style_div);
+        UI::ElementPtr windowbody = UI::addDiv(context, window, style_div, "scenebody");
 
         style.background = {0.3f, 0.3f, 0.3f, 1.0f};
         style.textcolor = {0.8f, 0.8f, 0.8f, 1.0f};
@@ -178,7 +178,7 @@ namespace IME {
         style_div.margin = {0.0f, 0.0f, 0.0f, 0.0f};
         
         UI::ElementPtr window = UI::addWindow(context, {UI::UI_NONE, 0}, {vec2f{0.0f, -200.0f}, vec2f{300.0f, -800.0f}}, platform);
-        UI::ElementPtr body = UI::addDiv(context, window, style_div);
+        UI::ElementPtr body = UI::addDiv(context, window, style_div, "componentbody");
 
         return window;
     }

@@ -120,6 +120,8 @@ namespace IME {
         glapi_fbo_create* fbo_create;
         glapi_fbo_bind* fbo_bind;
         glapi_fbo_create_texture_attachment* fbo_createtextureattachment;
+        glapi_fbo_create_rbo_attachment* fbo_createrenderbufferattachment;
+        glapi_fbo_resize* fbo_resize;
 
         //ubos
         glapi_ubo_create* createubo;

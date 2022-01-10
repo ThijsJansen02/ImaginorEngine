@@ -31,6 +31,9 @@ namespace IME::OpenGL {
     extern "C" IME_GLAPI_FBO_CREATE(ime_glapi_fbo_create);
     extern "C" IME_GLAPI_FBO_CREATE_TEXTURE_ATTACHMENT(ime_glapi_fbo_create_texture_attachment);
     extern "C" IME_GLAPI_FBO_BIND(ime_glapi_fbo_bind);
+    extern "C" IME_GLAPI_FBO_CREATE_RBO_ATTACHMENT(ime_glapi_fbo_create_rbo_attachment);
+    extern "C" IME_GLAPI_FBO_RESIZE(ime_glapi_fbo_resize);
+    extern "C" IME_GLAPI_FBO_DELETE(ime_glapi_fbo_delete);
 
     extern "C" IME_GLAPI_TEXTURE_CREATE(ime_glapi_texture_create);
     extern "C" IME_GLAPI_TEXTURE_BIND(ime_glapi_texture_bind);
