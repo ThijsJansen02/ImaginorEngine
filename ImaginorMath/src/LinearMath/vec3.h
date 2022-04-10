@@ -39,6 +39,13 @@ namespace IME
     };
 
     template<typename T, typename R>
+    inline bool operator==(const vec3<T> &left, const vec3<R> &right)
+    {
+        return left.x == right.x && left.y == right.y && left.z == right.z;
+    }
+
+
+    template<typename T, typename R>
     inline vec3<T> operator*(const vec3<T> &left, const vec3<R> &right)
     {
         return {left.x * right.x, left.y * right.y, left.z * right.z};

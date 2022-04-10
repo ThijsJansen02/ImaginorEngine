@@ -1,16 +1,14 @@
 #pragma once
-#include <core.h>
-#include <intrinsics.h>
-#include "mat3.h"
+#include "core.h"
 #include "vec4.h"
-#include "vec3.h"
+#include "mat3.h"
 
 namespace IME {
 
     struct mat4 {
         union {
-            vec4f rows[4];
-            real32 data[4 * 4] = {0.0f};
+            IME::vec4f rows[4];
+            IME::real32 data[4 * 4] = {0.0f};
         };
     };
 
@@ -97,6 +95,21 @@ namespace IME {
         result.rows[2] = vec3f{input.rows[2].x, input.rows[2].y, input.rows[2].z};
 
         return result;
+    }
+
+    inline vec4f toVec4_(const vec3f& v, real32 value = 0.0f) {
+        return {v.x, v.y, v.z, value};
+    }
+
+    inline 
+    mat4 inverseOfOrthagonalMat4(const mat4& mat) {
+        IME::real32 x = -mat.rows[0].z;
+        IME::real32 y = -mat.rows[1].z;
+        IME::real32 z = -mat.rows[2].z;
+
+        mat3 inner = getInnerMat3(mat);
+
+        return columnComposeMat4(toVec4_(inner.rows[0]), toVec4_(inner.rows[1]), toVec4_(inner.rows[2]), vec4f{x, y, z, 1.0f});
     }
 
     template<typename T> 

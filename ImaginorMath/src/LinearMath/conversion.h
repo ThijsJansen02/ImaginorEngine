@@ -1,8 +1,5 @@
 #pragma once
-#include "mat4.h"
-#include "mat3.h"
-#include "vec3.h"
-#include "eulertransform.h" 
+#include "eulertransform.h"
 
 namespace IME { 
 
@@ -51,6 +48,10 @@ namespace IME {
 
     inline vec3f toVec3(const vec2f& in, real32 z = 0.0f) {
     return {in.x, in.y, z};
+    }
+
+    inline vec2f toVec2f(vec2<uint32> values) {
+        return {(real32)values.x, (real32)values.y};
     }
 
     inline vec3f

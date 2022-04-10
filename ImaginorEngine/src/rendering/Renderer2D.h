@@ -48,10 +48,10 @@ namespace IME::Renderer2D {
         RenderCommands rendercommands;
     };
 
-    void setup(BatchRenderer2DData* data, sizeptr maxquadcount, const RenderCommands& rendercommands, MemoryPool* memory);
+    void setup(BatchRenderer2DData* data, sizeptr maxquadcount, const PlatformInterface& platform);
     void setBatchRendererData(BatchRenderer2DData* data);
     void setShader(gl_id shaderid);
-    gl_id loadBatchShader(const char* vertexpath, const char* fragmentpath, PlatformInterface* platform);
+    gl_id loadBatchShader(const char* vertexpath, const char* fragmentpath, const PlatformInterface& platform);
     void beginScene(mat4 viewprojection);
     void endScene();
     uint32 pushTexture(gl_id texture);

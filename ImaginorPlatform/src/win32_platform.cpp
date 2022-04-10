@@ -461,7 +461,7 @@ namespace IME {
     }
 
     DWORD WINAPI consoleThread(LPVOID lpParameter);
-    struct KeyData {
+    struct KeyData { 
         uint32 repeats;
     };
 
@@ -486,9 +486,16 @@ extern "C" {
     _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
 }
 
+IME::uint64 zip(IME::uint32 v1, IME::uint32 v2) {
+    IME::uint64 result = (IME::uint64)v1;
+    result = result << 32;
+    result += v2;
+    return result;
+}
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
-{
+{   
+    /*
     DWORD ThreadID;
     HANDLE threadhandle = CreateThread(
         0,
@@ -496,7 +503,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         IME::consoleThread,
         &IME::consoleevents,
         0, &ThreadID
-    );
+    );*/
 
     QueryPerformanceFrequency(&IME::performancefrequency);
     IME::real64 desiredframetime = 1.0f / 120.0f;
@@ -683,6 +690,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
                 e.destinations = IME::IME_APP;
                 e.source = IME::IME_PLATFORM;
                 e.param1 = IME::IME_LEFT_MB;
+                e.param2 = zip(platforminterface.mouse.relativemousepos.x, platforminterface.mouse.relativemousepos.y);
                 e.type = IME::IME_MOUSE_BUTTON_PRESSED;
 
                 pressedmousebuttons[e.param1].pressed = true;
@@ -696,6 +704,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
                 e.destinations = IME::IME_APP;
                 e.source = IME::IME_PLATFORM;
                 e.param1 = IME::IME_LEFT_MB;
+                e.param2 = zip(platforminterface.mouse.relativemousepos.x, platforminterface.mouse.relativemousepos.y);
                 e.type = IME::IME_MOUSE_BUTTON_RELEASED;
 
                 pressedmousebuttons[e.param1].pressed = false;
@@ -709,6 +718,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
                 e.destinations = IME::IME_APP;
                 e.source = IME::IME_PLATFORM;
                 e.param1 = IME::IME_RIGHT_MB;
+                e.param2 = zip(platforminterface.mouse.relativemousepos.x, platforminterface.mouse.relativemousepos.y);
                 e.type = IME::IME_MOUSE_BUTTON_RELEASED;
 
                 pressedmousebuttons[e.param1].pressed = false;
@@ -722,6 +732,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
                 e.destinations = IME::IME_APP;
                 e.source = IME::IME_PLATFORM;
                 e.param1 = IME::IME_RIGHT_MB;
+                e.param2 = zip(platforminterface.mouse.relativemousepos.x, platforminterface.mouse.relativemousepos.y);
                 e.type = IME::IME_MOUSE_BUTTON_PRESSED;
 
                 pressedmousebuttons[e.param1].pressed = true;
@@ -730,16 +741,25 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             }
 
             if(msg.message == WM_KEYDOWN) {
+                
+                IME::uint32 buffer = 0;
 
+                BYTE keyboard[256];
+                GetKeyboardState(keyboard);
+
+                pressedkeys[msg.wParam].repeats = 1;
+                int result = ToAscii(msg.wParam, 0, keyboard, (LPWORD)&buffer, 0);
+                
                 IME::Event e;
                 e.destinations = IME::IME_APP;
                 e.source = IME::IME_PLATFORM;
                 e.param1 = msg.wParam;
-                e.param2 = ++pressedkeys[msg.wParam].repeats;
+                e.param2 = zip(buffer, (IME::uint32)pressedkeys[msg.wParam].repeats);
                 e.type = IME::IME_KEY_PRESSED;
 
                 IME::applicationevents.input.push_back(e);
 
+#ifdef INPUTRECORD 
                 if(msg.wParam == 'R') {
 
                     if(platformstate.isrecording) {
@@ -766,7 +786,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
                         IME::win32_beginPlaybackInput(&platformstate);
                     }
                 }
+#endif
             }
+
             if(msg.message == WM_KEYUP) {
                 IME::Event e;
                 pressedkeys[msg.wParam].repeats = 0;

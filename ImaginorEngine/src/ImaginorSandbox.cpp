@@ -11,8 +11,6 @@
 #include <ImaginorEngine/src/rendering/Renderer2D.h>
 #include "textrenderering.h"
 #include "rendering/RenderQueue.h"
-#include "userinterface/Window.h"
-#include "userinterface/Context.h"
 #include <typeinfo>
 #include "scene/Components.h"
 

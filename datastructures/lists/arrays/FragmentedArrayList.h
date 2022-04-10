@@ -5,7 +5,7 @@
 namespace IME::Data {
 
     template<typename T, byte*(*allocator)(sizeptr size), void(*deallocator)(sizeptr size, byte* data)>
-    class FragmentedArrayList {
+    class FragmentedArrayList_ {
     private:    
     public:
         struct DataChunk {
@@ -13,8 +13,8 @@ namespace IME::Data {
             bool32 isoccupied;
         };
 
-        static FragmentedArrayList createFragmentedArrayList(sizeptr basecapacity) {
-            FragmentedArrayList result;
+        void init(sizeptr basecapacity) {
+            FragmentedArrayList_ result;
             result.m_Capacity = basecapacity;
             if (basecapacity > 0) {
                 result.m_Data = (DataChunk*)allocator(basecapacity * sizeof(DataChunk));
@@ -24,7 +24,7 @@ namespace IME::Data {
             }
             result.m_Firstopenspot = 0;
             result.m_Count = 0;
-            return result;
+            *this = result;
         }
         
         void resize(sizeptr newcapacity) {
@@ -69,15 +69,15 @@ namespace IME::Data {
             }
         }
 
-        DataChunk& operator[](sizeptr index) {
+        DataChunk& operator[](sizeptr index) const {
             IME_DEBUG_ASSERT_BREAK(m_Data[index].isoccupied && index < m_Count, "data is not occupied")
             return m_Data[index];
         }
 
-        const DataChunk& operator[](sizeptr index) const {
+        /*const DataChunk& operator[](sizeptr index) const {
             IME_DEBUG_ASSERT_BREAK(m_Data[index].isoccupied && index < m_Count, "data is not occupied")
             return m_Data[index];
-        }
+        }*/
 
         DataChunk& getUnchecked(sizeptr index) {
             return m_Data[index];

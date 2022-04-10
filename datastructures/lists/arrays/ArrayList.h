@@ -34,7 +34,7 @@ namespace IME::Data {
             T* m_Ptr;
         };
 
-        inline static ArrayList_ create(sizeptr basecapacity) {
+        inline void init(sizeptr basecapacity) {
             
             ArrayList_ result;
             result.m_Data = nullptr;
@@ -44,14 +44,15 @@ namespace IME::Data {
             result.m_Count = 0;
             result.m_Capacity = basecapacity;
 
-            return result;
+            *this = result;
         }  
 
-        inline static void destroy(ArrayList_& list) {
-            dealloc(list.m_Capacity * sizeof(T), (byte*)list.m_Data);
-            list.m_Capacity = 0;
-            list.m_Count = 0;
-            list.m_Data = nullptr;
+        inline void destroy() {
+
+            dealloc(this->m_Capacity * sizeof(T), (byte*)this->m_Data);
+            this->m_Capacity = 0;
+            this->m_Count = 0;
+            this->m_Data = nullptr;
         }
 
         inline static ArrayList_ copy(const ArrayList_& list) {
@@ -123,10 +124,12 @@ namespace IME::Data {
             m_Data = newdata;
         }
 
-        inline void removeInterval(sizeptr begin, sizeptr end) {
-            sizeptr removedsize = end - begin;
-            IME::copy((byte*)(m_Data + end), (byte*)(m_Data + begin), removedsize * sizeof(T));
-            m_Count -= removedsize;
+        inline void remove(uint32 index) {
+            IME_DEBUG_ASSERT_BREAK(m_Count > 0, "array is empty")
+            IME_DEBUG_ASSERT_BREAK(index < m_Count && index >= 0, "index is larger than count or index is less than zero")
+
+            IME::copyforwards((IME::byte*)(m_Data + index + 1), (IME::byte*)(m_Data + index), (m_Count - index - 1) * sizeof(T));
+            m_Count -= 1;
         }
 
         inline void shrink() {

@@ -9,7 +9,7 @@ uniform vec3 colors;
 uniform sampler2D texture1;
   
 void main()
-{   
+{  
     vec3 dcolor = 100 * colors;
     FragColor = texture(texture1, pTexCoords); //texture(texture0, pTexCoords);
 }

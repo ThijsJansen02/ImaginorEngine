@@ -5,8 +5,8 @@
 
 namespace IME::Data {
 
-	template<typename T, byte*(*allocator)(uint32 size), void(*deallocator)(uint32 size, byte* data)>
-	class DoublyLinkedList {
+	template<typename T, byte*(*allocator)(sizeptr size), void(*deallocator)(sizeptr size, byte* data)>
+	class DoublyLinkedList_ {
 	public:
 		struct Node {
 		public:
@@ -46,25 +46,14 @@ namespace IME::Data {
 		using iterator = iterator_L_base<Node>;
 		using const_iterator = iterator_L_base_const<Node>;
 
-		DoublyLinkedList() : m_Head(nullptr), m_Tail(nullptr) {
+		void init() {
+			m_Head = nullptr;
+			m_Tail = nullptr;
 
 			m_Count = 0;
 			Node* tail = (Node*) ::operator allocator(sizeof(Node));
 			m_Head = tail;
 			m_Tail = tail;
-		}
-
-		DoublyLinkedList(const std::initializer_list<T>& in) {
-			
-			Node* tail = (Node*) ::operator allocator(sizeof(Node));
-			m_Head = tail;
-			m_Tail = tail;
-			m_Count = 0;
-
-			for (const T& it : in) {
-				push_back(it);
-			}
-			return;
 		}
 
 		iterator begin() { return iterator(m_Head); }
@@ -138,6 +127,45 @@ namespace IME::Data {
 			}
 			m_Count++;
 		}
+
+		void remove(uint32_t index) {
+
+			if (index > m_Count / 2) {
+
+				//std::cout << "used upper it" << std::endl;
+				iterator it = iterator(m_Tail);
+				for (int i = m_Count; i > index; i--) {
+					it--;
+				}
+				Node* insert = it.getNode();
+				Node* newnode = allocator(sizeof(Node));
+				*newnode = Node(val, insert, insert->getPrev());
+
+				insert->getPrev()->m_Next = newnode;
+				insert->m_Prev = newnode;
+			} else {
+
+				iterator it = iterator(m_Head);
+
+				for (int i = 0; i < index; i++) {
+					it++;
+				}
+
+				Node* insert = it.getNode();
+				Node* newnode = allocator(sizeof(Node)); 
+				*newnode = Node(val, insert, insert->getPrev());
+
+				insert->getPrev()->m_Next = newnode;
+				insert->m_Prev = newnode;
+			}
+			m_Count++;
+		}
+
+		void remove(T* instanceptr) {
+
+			
+		}
+
 
 		inline void push(const T& val) {
 			push_front(val);

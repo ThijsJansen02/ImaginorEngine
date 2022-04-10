@@ -1,85 +1,15 @@
-#pragma once
-#include <datastructures/lists/arrays/ArrayList.h>
-#include <ImaginorPlatform/src/imegs.h>
-#include "../memory.h"
-#include "Renderer2D.h"
-#include <ImaginorPlatform/src/platform.h>
-#include "../textrenderering.h"
-#include <datastructures/strings/string.h>
+#include "rendering.h"
+#include "textrenderering.h"
+#include "rendering/Renderer2D.h"
 
-namespace IME {
+namespace IME::Rendering {
 
     typedef Data::String<Memory::alloc, Memory::dealloc> RenderString;
 
-    struct SimpleQuadCommand {
-        
-        vec4f color;
-        gl_id shader;
-        gl_id texture;
-        vec3f position;
-        vec2f size;
-    };
-
-    struct ComplexQuadCommand {
-
-        vec4f color;
-        gl_id shader;
-        gl_id texture;
-        mat4 transform;
-        vec2f texcoords[4];
-    };
-
-    struct SimpleTextCommand {
-
-        RenderString text;
-        TextureAtlas* font;
-        vec2f glyphsize;
-        vec3f position;
-        real32 maxwidth;
-        vec4f color;
-        real32 linespacing;
-
-    };  
-
-    enum RenderQueueTypes {
-        SIMPLE_QUAD,
-        COMPLEX_QUAD,
-        SIMPLE_TEXT
-    };
-
-    struct RenderQueue {
-
-        bool32 updatescene;
-        mat4 projection;
-        mat4 view;
-
-        RenderQueueTypes commandtype;
-        gl_id rendertarget;
-        uint32 viewwidth;
-        uint32 viewheight;
-        uint32 viewx;
-        uint32 viewy;
-
-        bool32 depthtesting;
-
-        uint32 bufferstoclear;
-        vec4f clearcolor;
-
-        byte* data1;
-        byte* data2;
-        sizeptr count1;
-        sizeptr count2;
-
-    };
-
-    struct RenderSet {
-        Data::ArrayList_<RenderQueue, Memory::alloc, Memory::dealloc> renderqueues;
-    };
-
-    inline RenderSet 
+    RenderSet 
     initRenderSet() {
         RenderSet result;
-        result.renderqueues = Data::ArrayList_<RenderQueue, Memory::alloc, Memory::dealloc>::create(0);
+        result.renderqueues.init(0);
         return result;
     }
     
@@ -105,6 +35,9 @@ namespace IME {
         if((uint64)left.font > (uint64)right.font) {
             return true;
         }
+        else {
+            return false;
+        }
     }
 
     template<typename T, int32(*cmp)(const T& left, const T& right)>
@@ -117,8 +50,8 @@ namespace IME {
         sizeptr count1 = count / 2;
         sizeptr count2 = count - count1;
 
-        T* queue1 = IME::mergeSortCommandsHelper<T, cmp>(commands, count1, res);
-        T* queue2 = IME::mergeSortCommandsHelper<T, cmp>(   commands + count1, count2, res);
+        T* queue1 = mergeSortCommandsHelper<T, cmp>(commands, count1, res);
+        T* queue2 = mergeSortCommandsHelper<T, cmp>(commands + count1, count2, res);
 
         uint32 j1 = 0;
         uint32 j2 = 0;
@@ -159,8 +92,8 @@ namespace IME {
         sizeptr count1 = count / 2;
         sizeptr count2 = count - count1;
 
-        T* queue1 = IME::mergeSortCommandsHelper<T, cmp>(commands, count1, res);
-        T* queue2 = IME::mergeSortCommandsHelper<T, cmp>(commands + count1, count2, res);
+        T* queue1 = mergeSortCommandsHelper<T, cmp>(commands, count1, res);
+        T* queue2 = mergeSortCommandsHelper<T, cmp>(commands + count1, count2, res);
 
         uint32 j1 = 0;
         uint32 j2 = 0;
@@ -193,7 +126,132 @@ namespace IME {
         Memory::dealloc(count * sizeof(T), (byte*)res);
     }
 
-    inline void 
+    template<typename T>
+    using ArrayList = Data::ArrayList_<T, Memory::alloc, Memory::dealloc>;
+
+    void 
+    pushQuad(
+            const vec3f& pos, const vec2f& size, 
+            const vec4f color, 
+            gl_id shader, 
+            gl_id texture, 
+            const vec2f* texcoords, 
+            ArrayList<Rendering::SimpleQuadCommand>* queue) {
+
+        Rendering::SimpleQuadCommand command;
+        command.color = color;
+        command.position = pos;
+        command.shader = shader;
+        command.size = size;
+        command.texture = texture;
+
+        command.texcoords[0] = texcoords[0];
+        command.texcoords[1] = texcoords[1];
+        command.texcoords[2] = texcoords[2];
+        command.texcoords[3] = texcoords[3];
+
+        queue->push_back(command);
+    }
+
+    void 
+    pushTexturedQuad(
+            const vec3f& pos, const vec2f& size, 
+            gl_id shader, 
+            gl_id texture, 
+            bool flipUVs, 
+            ArrayList<Rendering::SimpleQuadCommand>* queue) {
+
+        vec2f texcoords[4];
+
+        if(!flipUVs) {
+            texcoords[0] = {0.0f, 0.0f};
+            texcoords[1] = {1.0f, 0.0f};
+            texcoords[2] = {1.0f, 1.0f};
+            texcoords[3] = {0.0f, 1.0f};
+        } else {
+            texcoords[0] = {0.0f, 1.0f};
+            texcoords[1] = {1.0f, 1.0f};
+            texcoords[2] = {1.0f, 0.0f};
+            texcoords[3] = {0.0f, 0.0f};
+        }
+
+        pushQuad(pos, size, {1.0f, 1.0f, 1.0f, 1.0f}, shader, texture, texcoords, queue);
+    }
+
+    void 
+    pushColoredQuad(
+            const vec3f& pos, const vec2f& size, 
+            gl_id shader, 
+            const vec4f color, 
+            ArrayList<Rendering::SimpleQuadCommand>* queue) {
+        
+        vec2f texcoords[4];
+        texcoords[0] = {0.0f, 0.0f};
+        texcoords[1] = {1.0f, 0.0f};
+        texcoords[2] = {1.0f, 1.0f};
+        texcoords[3] = {0.0f, 1.0f};
+
+        pushQuad(pos, size, color, shader, 0, texcoords, queue);
+    }
+
+    void 
+    pushQuadTL(const vec3f& pos, const vec2f& size, 
+            const vec4f color, 
+            gl_id shader, 
+            gl_id texture, 
+            const vec2f* texcoords, 
+            ArrayList<Rendering::SimpleQuadCommand>* queue) {
+
+        vec3f position = pos + vec3f{0.5f * size.x, -0.5f * size.y, 0.0f };
+        pushQuad(position, size, color, shader, texture, texcoords, queue);
+    }
+
+    void
+    pushColoredQuadTL(
+            const vec3f& pos, const vec2f& size, 
+            gl_id shader, 
+            const vec4f color, 
+            ArrayList<Rendering::SimpleQuadCommand>* queue) {
+
+
+        vec3f position = pos + vec3f{0.5f * size.x, -0.5f * size.y, 0.0f};
+
+        vec2f texcoords[4];
+        texcoords[0] = {0.0f, 0.0f};
+        texcoords[1] = {1.0f, 0.0f};
+        texcoords[2] = {1.0f, 1.0f};
+        texcoords[3] = {0.0f, 1.0f};
+
+        pushQuad(position, size, color, shader, 0, texcoords, queue);
+    }
+
+    void 
+    pushTexturedQuadTL(
+            const vec3f& pos, const vec2f& size, 
+            gl_id shader, 
+            gl_id texture, 
+            bool flipUVs, 
+            ArrayList<Rendering::SimpleQuadCommand>* queue) {
+        
+        vec2f texcoords[4];
+
+        if(!flipUVs) {
+            texcoords[0] = {0.0f, 0.0f};
+            texcoords[1] = {1.0f, 0.0f};
+            texcoords[2] = {1.0f, 1.0f};
+            texcoords[3] = {0.0f, 1.0f};
+        } else {
+            texcoords[0] = {0.0f, 1.0f};
+            texcoords[1] = {1.0f, 1.0f};
+            texcoords[2] = {1.0f, 0.0f};
+            texcoords[3] = {0.0f, 0.0f};
+        }
+
+        pushQuadTL(pos, size, {1.0f, 1.0f, 1.0f, 1.0f}, shader, texture, texcoords, queue);
+
+    }
+
+    void 
     flushRenderSet(const RenderSet& renderset, const PlatformInterface& platform) {
 
         for(RenderQueue rq : renderset.renderqueues) {
@@ -242,18 +300,16 @@ namespace IME {
                         Renderer2D::pushTexture(currenttexture);
                     }
 
-                    vec2f texcoords[4] = {
-                        {0.0f, 0.0f},
-                        {1.0f, 0.0f},
-                        {1.0f, 1.0f},
-                        {0.0f, 1.0f}
-                    };
-
-                    Renderer2D::drawTexturedQuad(command.position, command.size, command.color, texcoords);
+                    
+                    Renderer2D::drawTexturedQuad(command.position, command.size, command.color, command.texcoords);
                 }
 
                 Renderer2D::endScene();
                 Renderer2D::flush();
+
+                if(rq.dealloc) {
+                    Memory::dealloc(rq.count1 * sizeof(SimpleQuadCommand), rq.data1);
+                }
             }
 
             //drawing complex quads
@@ -288,6 +344,10 @@ namespace IME {
 
                 Renderer2D::endScene();
                 Renderer2D::flush();
+
+                if(rq.dealloc) {
+                    Memory::dealloc(rq.count1 * sizeof(ComplexQuadCommand), rq.data1);
+                }
             }
 
             //drawing simple text
@@ -297,8 +357,8 @@ namespace IME {
 
                 SimpleTextCommand* commands = (SimpleTextCommand*)rq.data1;
 
-                TextureAtlas* currentfont = commands[0].font;
-                gl_id currentshader = commands[0].font->shader;
+                Assets::Font* currentfont = commands[0].font;
+                gl_id currentshader = commands[0].font->fontshader;
                 gl_id currenttexture = commands[0].font->texture;
 
                 Renderer2D::beginScene(viewprojection);
@@ -310,21 +370,24 @@ namespace IME {
                     SimpleTextCommand command = ((SimpleTextCommand*)rq.data1)[i];
                     if(command.font != currentfont) {
                         currentfont = command.font;
-                        if(command.font->shader != currentshader) {
-                            currentshader = command.font->shader;
+                        if(command.font->fontshader != currentshader) {
+                            currentshader = command.font->fontshader;
                             Renderer2D::flushAndReset();
                             Renderer2D::setShader(currentshader);
                         }
                         currenttexture = command.font->texture;
                         Renderer2D::pushTexture(currenttexture);
                     }
-                    drawStringFromTextureAtlas(command.text.getCstring(), toVec2(command.position), command.glyphsize, *command.font, command.maxwidth, command.color, command.position.z, command.linespacing);
+                    drawTextFromFont(command.text.getCstring(), command.position, command.maxwidth, command.linespacing, command.color, *command.font);
                 }
 
                 Renderer2D::endScene();
                 Renderer2D::flush();
-            }
 
+                if(rq.dealloc) {
+                    Memory::dealloc(rq.count1 * sizeof(SimpleTextCommand), rq.data1);
+                }
+            }
         }
     }
 }

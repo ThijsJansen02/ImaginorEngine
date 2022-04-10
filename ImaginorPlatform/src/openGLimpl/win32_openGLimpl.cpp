@@ -278,7 +278,7 @@ namespace IME::OpenGL {
 
         VertexArrayObject vao;
         vao.ibo = 0;
-        vao.vbos = ArrayList<gl_id>::create(0);
+        vao.vbos.init(0);
         glGenVertexArrays_(1, &vao.id);
         glBindVertexArray_(vao.id);
         glstate.boundvao = addNewPrimitive(&glstate.vaos, vao);
@@ -597,7 +597,7 @@ namespace IME::OpenGL {
         
         FrameBuffer framebuffer;
         glCreateFramebuffers_(1, &framebuffer.id);
-        framebuffer.attachments = ArrayList<FrameBufferAttachment>::create(0);
+        framebuffer.attachments.init(0);
         glBindFramebuffer_(GL_FRAMEBUFFER, framebuffer.id);
         framebuffer.height = height;
         framebuffer.width = width;
@@ -830,7 +830,7 @@ openGLMessageCallback( GLenum source,
     case GL_DEBUG_SEVERITY_MEDIUM:
         event.param1 = IME::IME_WARN;
         severitystr = "MEDIUM";
-        IME_DEBUG_BREAK()
+        //IME_DEBUG_BREAK()
         break;
     case GL_DEBUG_SEVERITY_LOW:
         event.param1 = IME::IME_WARN;

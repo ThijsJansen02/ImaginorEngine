@@ -28,6 +28,43 @@ namespace IME::Data {
             return result;
         }
 
+        void insert(char c, uint32 pos) {
+
+            IME_DEBUG_ASSERT_BREAK(m_Data, "string is not yet set");
+            char* newstring = (char*)alloc(m_Size + 1);
+            IME::copy((IME::byte*)m_Data, (IME::byte*)newstring, pos);
+            *(newstring + pos) = c;
+            IME::copy((IME::byte*)m_Data + pos, (IME::byte*)newstring + pos + 1, m_Size - pos);
+            m_Size+=1;
+            m_Data = newstring;
+            m_Data[m_Size - 1] = 0;
+        }
+
+        char operator[](uint32 i) {
+            return *(m_Data + i);
+        }
+
+        void remove(uint32 pos) {
+            IME_DEBUG_ASSERT_BREAK(m_Data, "string is not yet set");
+            char* newstring = (char*)alloc(m_Size-1);
+            IME::copy((IME::byte*)m_Data, (IME::byte*)newstring, pos);
+            IME::copy((IME::byte*)m_Data + pos + 1, (IME::byte*)newstring + pos, m_Size - pos - 1);
+            m_Size-=1;
+            m_Data = newstring;
+            m_Data[m_Size - 1] = 0;
+        }
+
+        void remove(uint32 begin, uint32 end) {
+            uint32 size_removed = end - begin;
+            char* newstring = (char*)alloc(m_Size - size_removed);
+            IME::copy((IME::byte*)m_Data, (IME::byte*)newstring, begin);
+            IME::copy((IME::byte*)m_Data + end + 1, (IME::byte*)newstring + begin, m_Size - end - 1);
+            m_Data = (char*)newstring;
+            m_Size = m_Size - size_removed;
+            m_Data[m_Size - 1] = 0;
+        }
+        
+
         void clear() {
             dealloc(m_Size, (byte*)m_Data);
             m_Size = 0;

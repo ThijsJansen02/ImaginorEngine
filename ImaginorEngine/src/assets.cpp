@@ -1,7 +1,9 @@
 #include "assets.h"
-#include <stb_image/stb_image.h>
+#include <stb/stb_image.h>
+#include <stb/stb_treutype.h>
+#include "memory.h"
 
-namespace IME {
+namespace IME::Assets {
 
     inline void 
     pushDebugMessage(const char* str, uint32 severity, const PlatformInterface& interface) {
@@ -59,9 +61,47 @@ namespace IME {
             return result;
         }
 
-        result.texture = platform.gfx.texture_create(result.props, decompressed, result.props.format, IME_UINT8);
+    result.id = platform.gfx.texture_create(result.props, decompressed, result.props.format, IME_UINT8);
         return result;
     }
 
+    Font loadFont(const char* filename, const PlatformInterface& platform, real32 pixelheight, uint32 bitmapwidth, uint32 bitmapheight, gl_id fontshader) {
+
+        Font result;
+
+        uint32 nchars = 96;
+
+        result.cdata = (stbtt_bakedchar*)Memory::alloc(sizeof(stbtt_bakedchar) * nchars);
+        byte* temp_bitmap = Memory::alloc(bitmapheight * bitmapwidth);
+
+        FileBuffer fontbuffer = platform.io.debug_readfile(filename, nullptr);
+        stbtt_BakeFontBitmap((unsigned char*)fontbuffer.data, 0, pixelheight, (unsigned char*)temp_bitmap, bitmapwidth, bitmapheight, 32, nchars, result.cdata);
+        
+        stbtt_InitFont(&result.fontinfo, (unsigned char*)fontbuffer.data, 0);
+        stbtt_GetFontVMetrics(&result.fontinfo, &result.ascent, &result.descent, &result.linegap);
+        result.scale = stbtt_ScaleForPixelHeight(&result.fontinfo, pixelheight);
+
+        platform.io.debug_releasefilememory(&fontbuffer);
+
+        TextureProperties props;
+        props.magfilter = IME_LINEAR;
+        props.minfilter = IME_LINEAR;
+        props.S = IME_REPEAT;
+        props.T = IME_REPEAT;
+        props.generatemipmaps = true;
+        props.format = IME_A;
+        props.width = bitmapwidth;
+        props.height = bitmapheight;
+
+        result.texture = platform.gfx.texture_create(props, temp_bitmap, IME_A, IME_UINT8);
+        result.filedir.set(filename);
+        result.props = props;
+        result.fontshader = fontshader;
+        result.pixelheight = pixelheight;
+
+        Memory::dealloc(bitmapwidth * bitmapheight, temp_bitmap);
+
+        return result;
+    }
 
 }

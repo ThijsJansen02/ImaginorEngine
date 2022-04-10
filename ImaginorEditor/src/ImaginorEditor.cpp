@@ -4,14 +4,14 @@
 #include <ImaginorPlatform/src/applicationmain.h>
 #include <datastructures/lists/arrays/basetypes/DynamicArray.h>
 #include <ImaginorEngine/src/memory.h>
-#include <ImaginorEngine/src/Imaginor.h>
-#include <ImaginorEngine/src/scene/Components.h>
 #include <intrinsics.h>
 #include <ImaginorEngine/src/functionality.h>
 #include <ImaginorMath/src/LinearMath/conversion.h>
 #include <ImaginorEngine/src/assets.h>
 #include "editorstate.h"
-#include "userinterface.h"
+#include <ImaginorEngine/src/userinterface.h>
+#include <stb/stb_treutype.h>
+#include <ImaginorEngine/src/rendering/Renderer2D.h>
 
 namespace IME::Editor
 {
@@ -26,13 +26,10 @@ namespace IME::Editor
 
     internal IME::mat4 
     calcLineSpaceMat4(const vec3f& p1, const vec3f& p2, real32 thickness, vec3f viewdirection) {
-
         vec3f p1p2 = p2 - p1;
-
         vec3f middle = p1 + 0.5f * p1p2;
         vec3f perpy = thickness * normalize(crossProduct(viewdirection, p1p2));
         vec3f perpz = thickness * normalize(crossProduct(perpy, p1p2));
-
         IME::mat4 transform = columnComposeMat4(
             {p1p2.x, p1p2.y, p1p2.z, 0.0f}, 
             {perpy.x, perpy.y, perpy.z, 0.0f}, 
@@ -40,58 +37,7 @@ namespace IME::Editor
             {middle.x, middle.y, middle.z, 1.0f});
         return transform;
     }
-
-#if 0
-    internal void
-    drawLocalSpace(mat4 transform, RenderQueue2D* rq, gl_id shader, vec3f viewdir) {
-
-        vec3f x = normalize(vec3f{transform.data[0 + 0 * 4], transform.data[0 + 1 * 4], transform.data[0 + 2 * 4]});
-        vec3f y = normalize(vec3f{transform.data[1 + 0 * 4], transform.data[1 + 1 * 4], transform.data[1 + 2 * 4]});
-        vec3f z = normalize(vec3f{transform.data[2 + 0 * 4], transform.data[2 + 1 * 4], transform.data[2 + 2 * 4]});
-
-        vec3f origin = {transform.data[3 + 0 * 4], transform.data[3 + 1 * 4], transform.data[3 + 2 * 4]};
-
-        mat4 x_transform = calcLineSpaceMat4(origin, origin + x, 0.07f, viewdir);
-        mat4 y_transform = calcLineSpaceMat4(origin, origin + y, 0.07f, viewdir);
-        mat4 z_transform = calcLineSpaceMat4(origin, origin + z, 0.07f, viewdir);
-
-        RendererCommand2D command;
-        command.shader = shader;
-        command.texture = 0;
-
-        command.transform = x_transform;
-        command.color = {1.0f, 0.0f, 0.0f, 1.0f};
-        rq->commands.push_back(command);
-
-        command.transform = y_transform;
-        command.color = {0.0f, 1.0f, 0.0f, 1.0f};
-        rq->commands.push_back(command);
-
-        command.transform = z_transform;
-        command.color = {0.0f, 0.0f, 1.0f, 1.0f};
-        rq->commands.push_back(command);
-    }
-
-    internal void
-    pushSpriteRenderComponentsToRQ(SceneRegistry* scene, RenderQueue2D* rq) {
-        scene->forEachPair<SpriteRendererComponent, TransformComponent>([](SpriteRendererComponent* sr, TransformComponent* tr, void* userptr){
-
-            RenderQueue2D* rq = (RenderQueue2D*)userptr;
-            RendererCommand2D command;
-            command.color = sr->color;
-            command.shader = sr->shader;
-            command.texture = sr->textureid;
-            command.texcoords[0] = {0.0f, 0.0f};
-            command.texcoords[1] = {1.0f, 0.0f};
-            command.texcoords[2] = {1.0f, 1.0f};
-            command.texcoords[3] = {0.0f, 1.0f};
-            command.transform = tr->transform;
-            rq->commands.push_back(command);
-
-        }, rq);
-    }
-#endif
-
+ 
     inline void 
     pushDebugMessage(const char* str, uint32 severity, PlatformInterface* interface) {
 
@@ -104,204 +50,145 @@ namespace IME::Editor
         interface->events.push(e);
     }
 
+    ON_MOUSE_CLICK_EVENT(paragraphclick) { //ElementPtr element, Event e, Layer* uilayer, const PlatformInterface& platform)
+        //UI::Paragraph* p = &uilayer->paragraphs[element.offset].data;
+        UI::addConstraint(element, UI::BACKGROUND_COLOR, "1.0, 1.0, 1.0, 1.0", uilayer);
+        //UI::addConstraint(element, UI::PADDING, "1.0px, 1.0px, 1.0px, 1.0px", uilayer);
+        return {false, true};
+    }
+
+    ON_RESIZE_EVENT(framebufferupdate) { //ElementPtr element, Event e, Layer* uilayer, const PlatformInterface& platform)
+        EditorState* stateptr = (EditorState*)uilayer->userpointer;
+
+        platform.gfx.fbo_bind(stateptr->sceneframebuffer);
+        platform.gfx.fbo_resize((uint32)newsize.width, (uint32)newsize.height);
+        stateptr->colorbuffer.props.width = (uint32)newsize.width;
+        stateptr->colorbuffer.props.height = (uint32)newsize.height;
+
+        return {false, false};
+    }
+
     extern "C" IME_APPLICATION_INIT(applicationInit) { //bool32 applicationInit(ApplicationMemory memory, RenderCommands rendercommands)
 
         EditorState* stateptr = (EditorState*)platform.appmemory.persistentstorage;
-        CacheableState state = stateptr->cachestate;
+        stateptr->testimage = Assets::loadColorTexture8("hat32x32.png", platform, 4);
+        stateptr->renderset = Rendering::initRenderSet();
 
-        state.mainmemory.base = (byte*)platform.appmemory.transientstorage;
-        state.mainmemory.size = platform.appmemory.transientstoragesize;
-        state.mainmemory.used = 0;
+        Renderer2D::setup(&stateptr->batchdata, 10000, platform);
+        Renderer2D::setBatchRendererData(&stateptr->batchdata);
 
-        state.mainmemorypool = createMemoryPool(&state.mainmemory, state.mainmemory.size, 2048);
-        Memory::setGlobal(&state.mainmemorypool);
-        Renderer2D::setBatchRendererData(&state.batchrenderdata);
-        Renderer2D::setup(&state.batchrenderdata, 10000, platform.gfx, &state.mainmemorypool);
+        stateptr->fontshader = Renderer2D::loadBatchShader("batchvertexshader.glsl", "textfragment.glsl", platform);
+    	stateptr->quadshader = Renderer2D::loadBatchShader("batchvertexshader.glsl", "batchfragmentshader.glsl", platform);
 
-        state.fontshader = Renderer2D::loadBatchShader("batchvertexshader.glsl", "textfragment.glsl", &platform);
-        state.quadshader = Renderer2D::loadBatchShader("batchvertexshader.glsl", "batchfragmentshader.glsl", &platform);
-
-        stateptr->renderset = initRenderSet();
-        stateptr->renderqueue = Arraylist<SimpleQuadCommand>::create(0);
-
-        UI::StyleProperties style;
-        style.background = {0.2, 0.2f, 0.2f, 1.0f};
-        style.padding = {5.0f, 5.0f, 5.0f, 5.0f};
-        style.font = &stateptr->font;
-        style.glyphsize = {10.0f, 12.0f};
-        style.linespacing = {1.0f};
-        style.shader = state.quadshader;
-        style.textcolor = {0.0f, 0.0f, 0.0f, 1.0f};
-        style.margin = {5.0f, 5.0f, 5.0f, 5.0f};
-
-        stateptr->sceneregistry.init();
-
-        state.entity1 = stateptr->sceneregistry.createEntity();
-        stateptr->selectedentity = {0xFFFFFFFF};
+        stateptr->textfont = Assets::loadFont("consolas/CONSOLA.ttf", platform, 40, 512, 512, stateptr->fontshader);
         
-        TransformComponent tc;
-        SpriteRendererComponent sc;
-        TagComponent tag;
+        stateptr->uilayer = UI::createLayer(stateptr->quadshader, platform, &stateptr->textfont);
+        stateptr->uilayer.userpointer = stateptr;
+        
+        UI::ElementPtr renderwindow = UI::addWindowToLayer({100.0f, 1000.0f, 0.0f, 1200.0f, 900.0f}, stateptr->quadshader, "main window", platform, &stateptr->uilayer);
+        UI::addOnResizeEventHandler(renderwindow, framebufferupdate, &stateptr->uilayer);
+        UI::Region windowcontentregion = UI::getContentRegion(renderwindow, stateptr->uilayer);
 
-        tag.tag = copyString("Entity(1)");
-        tc.transform = transformMat4<real32>({0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 1.0f});
-        sc.shader = state.quadshader;
-        sc.textureid = 0;
-        sc.texture = 0;
-        sc.color = {1.0f, 0.0f, 0.0f, 1.0f};
+        stateptr->sceneframebuffer = platform.gfx.fbo_create((uint32)windowcontentregion.width, (uint32)windowcontentregion.height);
 
+        stateptr->colorbuffer.props.format = IME_RGBA;
+        stateptr->colorbuffer.props.generatemipmaps = false;
+        stateptr->colorbuffer.props.magfilter = IME_NEAREST;
+        stateptr->colorbuffer.props.minfilter = IME_NEAREST;
+        stateptr->colorbuffer.props.S = IME_REPEAT;
+        stateptr->colorbuffer.props.T = IME_REPEAT;
+        stateptr->colorbuffer.props.width = windowcontentregion.width;
+        stateptr->colorbuffer.props.height = windowcontentregion.height;
+        stateptr->colorbuffer.id = platform.gfx.fbo_createtextureattachment(IME_COLOR_ATTACHMENT0, stateptr->colorbuffer.props);
 
-        stateptr->sceneregistry.addComponent<TagComponent>(state.entity1, tag);
-        stateptr->sceneregistry.addComponent<TransformComponent>(state.entity1, tc);
-        stateptr->sceneregistry.addComponent<SpriteRendererComponent>(state.entity1, sc);
+        UI::addImage(&stateptr->colorbuffer, renderwindow, &stateptr->uilayer);
 
-        real32 aspectratio = (real32)platform.window.width / (real32)platform.window.height;
-        mat4 projection = perspectiveMat4(70.0f, -0.1, -100.0f, aspectratio); //OrthographicMat4(-10.0f, 10.0f, -10 / aspectratio, 10 / aspectratio, -100.0f, 100.0f);
+        Scene::initScene(&stateptr->scene);
 
-        stateptr->editorcamera.forward = {0.0f, 0.0f, -1.0f};
-        stateptr->editorcamera.position = {0.0f, 0.0f, 10.0f};
-        stateptr->editorcamera.projection = projection;
+        Scene::SceneData* scene = &stateptr->scene;
 
-        state.lastmousepos =  { (real32)platform.mouse.relativemousepos.x, (real32)platform.mouse.relativemousepos.y };
+        Scene::SpriteRendererComponent comp;
+        comp.color = {1.0f, 1.0f, 1.0f, 1.0f};
+        comp.shader = stateptr->quadshader;
+        comp.texture = &stateptr->testimage;
+        comp.textureid = comp.texture->id;
 
-        mat4 viewprojection = calculateViewProjection(stateptr->editorcamera, {0.0f, 1.0f, 0.0f});
+        Scene::Entity ent = Scene::addNewEntity("first entity", &stateptr->scene);
+        Scene::addComponentToEntity(ent, comp, &stateptr->scene);
 
-        Data::Entity entity2 = stateptr->sceneregistry.createEntity();
-
-        stateptr->texture = loadColorTexture8("hat32x32.png", platform, 0);
-
-        tag.tag = copyString("Entity(2)");
-        tc.transform = transformMat4<real32>({0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f});
-        sc.shader = state.quadshader;
-        sc.textureid = stateptr->texture.texture;
-        sc.texture = &stateptr->texture;
-        sc.color = {1.0f, 1.0f, 1.0f, 1.0f};
-
-        stateptr->sceneregistry.addComponent<TagComponent>(entity2, tag);
-        stateptr->sceneregistry.addComponent<TransformComponent>(entity2, tc);
-        stateptr->sceneregistry.addComponent<SpriteRendererComponent>(entity2, sc);
-
-        stateptr->uicontext = UI::createContext();
-        stateptr->uicontext.userptr = stateptr;
-        stateptr->sceneview = setupSceneView(&stateptr->uicontext, &stateptr->sceneregistry, style, platform);
-        stateptr->componentview = setupComponentView(&stateptr->uicontext, &stateptr->sceneregistry, style, platform);
-        UI::calculateUiComponents(&stateptr->uicontext);
-
-        stateptr->font = loadTextureAtlas("bitmap_font.png", 18, 7, platform, state.fontshader);
-        stateptr->font.offset = 32;
-
-        stateptr->cachestate = state;
+        Scene::Entity camera = Scene::addNewEntity("camera", &stateptr->scene);
+        Scene::CameraComponent cameracomponent;
+        cameracomponent.projection = perspectiveMat4(100.0f, 0.1f, 100.0f, (real32)stateptr->colorbuffer.props.width / (real32)stateptr->colorbuffer.props.height);
+        Scene::addComponentToEntity(camera, cameracomponent, &stateptr->scene);
+        Scene::getComponent<Scene::TransformComponent>(camera, &stateptr->scene)->transform = translationMat4(vec3f{0.0f, 0.0f, 10});
+        stateptr->cameraentity = camera;
+        
+        //calculate the element of the window
+        UI::calculateElementsForWindow(renderwindow, stateptr->uilayer);
         return true;
     }
 
+    template<typename T>
+    using ArrayList =  Data::ArrayList_<T, IME::Memory::alloc, IME::Memory::dealloc>;
+
+    real32 dist = 0.0f;
     extern "C" IME_APPLICATION_UPDATE(applicationUpdate) { //bool32 applicationUpdate(PlatformInterface platform)
 
-
         EditorState* stateptr = (EditorState*)platform.appmemory.persistentstorage;
-        CacheableState state = stateptr->cachestate;
+
+        Scene::SceneData* scene = &stateptr->scene;
+
         Event e;
-
-        vec3f worldup = {0.0f, 1.0f, 0.0f};
-        
-        vec2f mousemoved = 0.1f *  (state.lastmousepos - platform.mouse.relativemousepos);
-        state.lastmousepos = { (real32)platform.mouse.relativemousepos.x, (real32)platform.mouse.relativemousepos.y };
-
         while(platform.events.pop(&e)) {
-            UI::uiOnEvent(&stateptr->uicontext, e, platform);
-            if(e.type == IME_KEY_PRESSED) {
-                if(e.param1 == 'F') {
-                    state.overlay = !state.overlay;
-                }
-            }
-
-            if(e.type == IME_MOUSE_MOVED) {
-                
-                if(platform.mouse.isButtonPressed(IME_RIGHT_MB)) {
-                    
-                    if(absoluteReal32(mousemoved.x) > 40.0f || absoluteReal32(mousemoved.y) > 40.0f) {
-                        continue;
-                    }
-
-                    Quaternion yaw = quaternionFromAngleVector(toRadians(mousemoved.x), worldup);
-                    stateptr->editorcamera.forward = applyQuatRotationToVec3(normalize(stateptr->editorcamera.forward), yaw);
-
-                    vec3f right = crossProduct(stateptr->editorcamera.forward, worldup);
-                    Quaternion pitch = quaternionFromAngleVector(toRadians(mousemoved.y), right);
-                    stateptr->editorcamera.forward = applyQuatRotationToVec3(stateptr->editorcamera.forward, pitch);
-                }
-            }
+            UI::propagateEventToLayer(e, &stateptr->uilayer, platform);
         }
 
-        vec3f cameraright = crossProduct(stateptr->editorcamera.forward, worldup);
+        Scene::CameraComponent* camera = Scene::getComponent<Scene::CameraComponent>(stateptr->cameraentity, scene);
+        Scene::TransformComponent* cameratransform = Scene::getComponent<Scene::TransformComponent>(stateptr->cameraentity, scene);
 
-        if(platform.keyboard.isKeyPressed('W')) {
-            stateptr->editorcamera.position += 20.0f * platform.time.lastframetime * stateptr->editorcamera.forward;
-        }
-        if(platform.keyboard.isKeyPressed('S')) {
-            stateptr->editorcamera.position -= 20.0f * platform.time.lastframetime * stateptr->editorcamera.forward;
-        }
-        if(platform.keyboard.isKeyPressed('A')) {
-            stateptr->editorcamera.position -= 20.0f * platform.time.lastframetime * cameraright;
-        }
-        if(platform.keyboard.isKeyPressed('D')) {
-            stateptr->editorcamera.position += 20.0f * platform.time.lastframetime * cameraright;
-        }
-        if(platform.keyboard.isKeyPressed('Q')) {
-            stateptr->editorcamera.yaw -= 45.0f * platform.time.lastframetime;
-        }
-        if(platform.keyboard.isKeyPressed('E')) {
-            stateptr->editorcamera.yaw += 45.0f * platform.time.lastframetime;
-        }
-
-
-        real32 aspectratio = (real32)platform.window.width / (real32)platform.window.height;
-        mat4 projection = perspectiveMat4(70.0f, 0.1f, 1000.0f, aspectratio);
-
-        stateptr->editorcamera.projection = projection;
-        mat4 viewprojection = calculateViewProjection(stateptr->editorcamera, worldup);
-
-        platform.gfx.setviewport(0, 0, platform.window.width, platform.window.height);
-
-        Renderer2D::setBatchRendererData(&state.batchrenderdata);
-        Memory::setGlobal(&state.mainmemorypool);   
-#if 0
-
-        //render gizmo
-        platform.gfx.disable(IME_DEPTH_TEST);
-        if(stateptr->selectedentity.index != 0xFFFFFFFF) {
-            TransformComponent transform = stateptr->sceneregistry.getComponent<TransformComponent>(stateptr->selectedentity);
-            drawLocalSpace(transform.transform, &state.sceneRQ, state.quadshader, stateptr->editorcamera.position - vec3f{ transform.transform.rows[0].w, transform.transform.rows[1].w, transform.transform.rows[2].w });
-            
-            Renderer2D::beginScene(viewprojection);
-            Renderer2D::setShader(state.quadshader);
-
-            flushRenderQueue2D(&state.sceneRQ, platform);
-
-            Renderer2D::endScene();
-            Renderer2D::flush();
-        }
-#endif
-
-        //start rendering ui
-        UI::updateUi(&stateptr->uicontext, platform);
-        UI::pushElementsToRenderSet(stateptr->uicontext, &stateptr->renderset, state.quadshader, platform);
-        flushRenderSet(stateptr->renderset, platform);
-
-        for(RenderQueue rq : stateptr->renderset.renderqueues) {
-            if(rq.commandtype == SIMPLE_QUAD) {
-                Memory::dealloc(rq.count1 * sizeof(SimpleTextCommand), rq.data1);
-            }
-            if(rq.commandtype == COMPLEX_QUAD) {
-                Memory::dealloc(rq.count1 * sizeof(ComplexQuadCommand), rq.data1);
-            }
-            if(rq.commandtype == SIMPLE_TEXT) {
-                Memory::dealloc(rq.count1 * sizeof(SimpleTextCommand), rq.data1);
-            }
-        }
-
+        mat4 textprojection = OrthographicMat4(0.0f, platform.window.width, 0.0f, platform.window.height, -100.0f, 70.0f);
+        mat4 sceneprojection = perspectiveMat4(100.0f, 0.1f, 100.0f, (real32)stateptr->colorbuffer.props.width / (real32)stateptr->colorbuffer.props.height);
+        mat4 view = inverseOfOrthagonalMat4(cameratransform->transform);
+        camera->projection = sceneprojection;
+        //
         stateptr->renderset.renderqueues.clear();
 
-        stateptr->cachestate = state;
+        if(platform.keyboard.isKeyPressed(IME_KEY_W)) {
+            dist+= 0.05f;
+        }
+
+        if(platform.keyboard.isKeyPressed(IME_KEY_S)) {
+            dist-= 0.05f;
+        }
+
+        Scene::pushSceneToRenderSet(&stateptr->renderset, &stateptr->scene, view, sceneprojection, stateptr->sceneframebuffer, {(uint32)stateptr->colorbuffer.props.width, (uint32)stateptr->colorbuffer.props.height});
+
+        Rendering::ArrayList<Rendering::SimpleQuadCommand> quadrq;
+        quadrq.init(0);
+
+        Rendering::RenderQueue queue;
+        queue.data1 = (byte*)&quadrq[0];
+        queue.count1 = quadrq.getCount();
+        queue.clearcolor = {0.5f, 0.5f, 0.5f, 1.0f};
+        queue.commandtype = IME::Rendering::SIMPLE_QUAD;
+        queue.depthtesting = true;
+        queue.bufferstoclear = 0;
+        queue.projection = sceneprojection;
+        queue.view = translationMat4(vec3f{0.0f, 0.0f, dist});
+        queue.viewwidth = stateptr->colorbuffer.props.width;
+        queue.viewheight = stateptr->colorbuffer.props.height;
+        queue.rendertarget = stateptr->sceneframebuffer;    
+        queue.updatescene = true;
+        queue.viewx = 0;
+        queue.viewy = 0;
+        queue.dealloc = true;
+        stateptr->renderset.renderqueues.push_back(queue);
+
+        //pushing the ui elements to the renderset and flushing
+        UI::pushLayerToRenderSet(stateptr->uilayer, &stateptr->renderset, textprojection, platform);
+        Rendering::flushRenderSet(stateptr->renderset, platform);
+
         return true;
     }
 }
+

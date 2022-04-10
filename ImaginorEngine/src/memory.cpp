@@ -13,21 +13,21 @@ namespace IME {
         }
 
         byte* alloc(sizeptr size) {
-            IME_DEBUG_ASSERT_BREAK(globalmemory, "global memory not yet set!")
 #if  1
             byte* data = (byte*)malloc(size);
             memset(data, 0, size);
             return data;
 #else
+            IME_DEBUG_ASSERT_BREAK(globalmemory, "global memory not yet set!")
             return (byte*)allocateMemory_(globalmemory, size);
 #endif //  0
         }
 
         void dealloc(sizeptr size, byte* data) {
-            IME_DEBUG_ASSERT_BREAK(globalmemory, "global memory not yet set!")
 #if 1
             free(data);
 #else
+            IME_DEBUG_ASSERT_BREAK(globalmemory, "global memory not yet set!")
             deallocateMemory_(globalmemory, data, size);
 #endif
         }
@@ -125,7 +125,7 @@ namespace IME {
 
     void
     replaceSmallerPoolChunk(PoolChunk* pool, uint32 index, PoolChunk chunk, uint32 poolsize) {
-        
+    
         IME_DEBUG_ASSERT_BREAK(index < poolsize, "")
         for(int32 i = index - 1; i >= 0; i--) {
             PoolChunk* current = &pool[i];

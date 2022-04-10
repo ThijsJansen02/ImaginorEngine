@@ -94,4 +94,14 @@ namespace IME
 
         //memcpy((void*)dst, (void*)src, size);
     } 
+
+    inline void
+    copyforwards(byte* src, byte* dst, sizeptr size) {
+        
+        for (int64 i = 0; i < size; i++) {
+            dst[i] = src[i];
+        }
+
+        //memcpy((void*)dst, (void*)src, size);
+    } 
 }

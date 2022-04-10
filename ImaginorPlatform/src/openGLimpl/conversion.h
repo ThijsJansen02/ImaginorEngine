@@ -92,9 +92,9 @@ namespace IME::OpenGL {
 
     global_var int32 glcolorformats[] = {
         GL_RED,
-        GL_RED, 
-        GL_RED, 
-        GL_RED,
+        GL_GREEN, 
+        GL_BLUE, 
+        GL_ALPHA,
         GL_RG,
         GL_RGB,
         GL_RGBA,

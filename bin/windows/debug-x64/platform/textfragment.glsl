@@ -10,8 +10,5 @@ uniform sampler2D textures[32];
 void main()
 {   
     vec4 texturefagment = texture(textures[int(pMaterialID)], pTexCoords);
-    if(texturefagment.r == 0.0) {
-        discard;
-    }
-    FragColor = vec4(pColor.r, pColor.g, pColor.b, texturefagment.r);
+    FragColor = vec4(pColor.r, pColor.g, pColor.b, texturefagment.a);
 }

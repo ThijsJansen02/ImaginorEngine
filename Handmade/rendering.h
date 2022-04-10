@@ -6,8 +6,9 @@
 #include <ImaginorPlatform/src/platform.h>
 #include <LinearMath/ivec2.h>
 
-namespace IME
+namespace IME::Rendering
 {
+
     struct RendererState {
         bool32 backfaceculling;
     };

@@ -31,27 +31,27 @@ namespace IME::Renderer2D {
         }
     }
 
-    gl_id loadBatchShader(const char* vertexsrcpath, const char* fragmentsrcpath, PlatformInterface* platform) {
+    gl_id loadBatchShader(const char* vertexsrcpath, const char* fragmentsrcpath, const PlatformInterface& platform) {
 
-        FileBuffer fragmentsrc = platform->io.debug_readfile(fragmentsrcpath, nullptr);
-        FileBuffer vertexsrc = platform->io.debug_readfile(vertexsrcpath, nullptr);
+        FileBuffer fragmentsrc = platform.io.debug_readfile(fragmentsrcpath, nullptr);
+        FileBuffer vertexsrc = platform.io.debug_readfile(vertexsrcpath, nullptr);
 
         gl_id shader;
-        shader = platform->gfx.createshader();
-        platform->gfx.shaderaddprogram(IME_VERTEX, (char*)vertexsrc.data);
-        platform->gfx.shaderaddprogram(IME_FRAGMENT, (char*)fragmentsrc.data);
-        platform->gfx.shader_compile();
-        platform->gfx.bindshader(shader);
-        setTextureBindings("textures[%d]", platform->gfx);
+        shader = platform.gfx.createshader();
+        platform.gfx.shaderaddprogram(IME_VERTEX, (char*)vertexsrc.data);
+        platform.gfx.shaderaddprogram(IME_FRAGMENT, (char*)fragmentsrc.data);
+        platform.gfx.shader_compile();
+        platform.gfx.bindshader(shader);
+        setTextureBindings("textures[%d]", platform.gfx);
 
-        platform->io.debug_releasefilememory(&fragmentsrc);
-        platform->io.debug_releasefilememory(&vertexsrc);
+        platform.io.debug_releasefilememory(&fragmentsrc);
+        platform.io.debug_releasefilememory(&vertexsrc);
 
         return shader;
     }
 
     void 
-    setup(BatchRenderer2DData* data, sizeptr maxquadcount, const RenderCommands& rendercommands, MemoryPool* memory) {
+    setup(BatchRenderer2DData* data, sizeptr maxquadcount, const PlatformInterface& platform) {
         
         BatchRenderer2DData& batchrendererdata = *batchrendererdata_;
 
@@ -63,14 +63,14 @@ namespace IME::Renderer2D {
         result.indexcount = (result.vertexcount / 4) * 6;
         result.indexbuffersize = result.indexcount * sizeof(uint32);
 
-        result.localbuffer = (BatchVertex*)allocateMemory_(memory, result.vertexbuffersize);
+        result.localbuffer = (BatchVertex*) Memory::alloc(result.vertexbuffersize);
 
-        result.renderbuffer = rendercommands.rbo_create();
-        result.vertexbuffer = rendercommands.rbo_addbuffer(nullptr, result.vertexbuffersize, batchbufferlayout, IME_DYNAMIC_DRAW);
+        result.renderbuffer = platform.gfx.rbo_create();
+        result.vertexbuffer = platform.gfx.rbo_addbuffer(nullptr, result.vertexbuffersize, batchbufferlayout, IME_DYNAMIC_DRAW);
 
-        result.scenebuffer = rendercommands.createubo(nullptr, sizeof(SceneData), IME_DYNAMIC_DRAW);
+        result.scenebuffer = platform.gfx.createubo(nullptr, sizeof(SceneData), IME_DYNAMIC_DRAW);
 
-        result.rendercommands = rendercommands;
+        result.rendercommands = platform.gfx;
 
         TextureProperties props;
         props.format = IME_RGBA;
@@ -82,9 +82,9 @@ namespace IME::Renderer2D {
         props.T = IME_REPEAT;
 
         ubyte color[4] = {255, 255, 255, 255};
-        result.textures[0] = rendercommands.texture_create(props, (byte*)color, IME_RGBA, IME_UINT8);
+        result.textures[0] = platform.gfx.texture_create(props, (byte*)color, IME_RGBA, IME_UINT8);
 
-        uint32* indeces = (uint32*)allocateMemory_(memory, result.indexbuffersize);
+        uint32* indeces = (uint32*)Memory::alloc(result.indexbuffersize);
 
         uint32 vertexcount = 0;
         for(uint32 i = 0; i < result.indexcount; i += 6) {
@@ -99,8 +99,8 @@ namespace IME::Renderer2D {
             vertexcount += 4;
         }
 
-        rendercommands.rbo_setindexbuffer((byte*)indeces, result.indexbuffersize, IME_UINT32, IME_STATIC_DRAW);
-        deallocateMemory_(memory, (byte*)indeces, result.indexbuffersize);
+        platform.gfx.rbo_setindexbuffer((byte*)indeces, result.indexbuffersize, IME_UINT32, IME_STATIC_DRAW);
+        Memory::dealloc(result.indexbuffersize, (byte*)indeces);
 
         *data = result;
         batchrendererdata_ = data;

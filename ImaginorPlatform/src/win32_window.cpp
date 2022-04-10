@@ -172,6 +172,8 @@ namespace IME {
 
                 glEnable(GL_BLEND);
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                
+                glClearColor(0.4f, 0.4f, 0.4f, 1.0f);
 
                 //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 

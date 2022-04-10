@@ -51,6 +51,22 @@
         },
         {
             "type": "shell",
+            "label": "build",
+            "command": "enginebuild.bat;editorbuild.bat",
+            "args": [],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "type": "shell",
+            "label": "build and run",
+            "command": "enginebuild.bat;editorbuild.bat;run.bat",
+            "args": [],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "type": "shell",
             "label": "testbuild",
             "command": "testbuild.bat",
             "args": [],
