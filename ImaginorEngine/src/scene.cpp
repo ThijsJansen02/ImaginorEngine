@@ -1,10 +1,26 @@
 #include "scene.h"
-
+#include "components.h"
 
 namespace IME::Scene {
 
     void initScene(SceneData* scene) {
         scene->registry.init();
+    }
+
+    void updateScripts(const PlatformInterface& platform, SceneData* scene) {
+        for(SceneRegistry::ComponentData<Scene::ScriptComponent> component : scene->registry.view<Scene::ScriptComponent>()) {
+            if(component.used) {
+                component.component.onupdate(component.component.data, scene, platform);
+            }
+        }
+    }
+
+    void propagateEventToScripts(Event e, const PlatformInterface& platform, SceneData* scene) {
+        for(SceneRegistry::ComponentData<Scene::ScriptComponent> component : scene->registry.view<Scene::ScriptComponent>()) {
+            if(component.used) {
+                component.component.onevent(component.component.data, e, scene, platform);
+            }
+        }
     }
 
     void spriteToRenderSet(TransformComponent* tf, SpriteRendererComponent* sr, void* userpointer) {
@@ -18,7 +34,8 @@ namespace IME::Scene {
         command.texcoords[1] = {1.0f, 0.0f};
         command.texcoords[2] = {1.0f, 1.0f};
         command.texcoords[3] = {0.0f, 1.0f};
-        command.texture = sr->texture->id;
+
+        command.texture = sr->textureid;
         
         command.transform = tf->transform;
         quadrq->push_back(command);

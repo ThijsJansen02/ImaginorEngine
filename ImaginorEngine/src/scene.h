@@ -1,7 +1,7 @@
+#pragma once
 #include <datastructures/ecs/ecs.h>
 #include "rendering.h"
 #include "memory.h"
-#include "components.h"
 
 namespace IME::Scene {
 
@@ -12,10 +12,11 @@ namespace IME::Scene {
         SceneRegistry registry;
     };
 
-
+    void updateScripts(const PlatformInterface& platform, SceneData* scene);
     void initScene(SceneData* scene);
     void pushSceneToRenderSet(Rendering::RenderSet* rs, SceneData* scene, mat4 view, mat4 projection, gl_id framebuffer, vec2<uint32> framebuffersize);
     Entity addNewEntity(const char* tag, SceneData* scene);
+    void propagateEventToScripts(Event e, const PlatformInterface& platform, SceneData* scene);
 
     template<typename comp>
     comp* getComponent(Entity entity, SceneData* scene) {

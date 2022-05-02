@@ -57,7 +57,7 @@ namespace IME {
         return result;
     }
 
-    inline mat4 rotationMat4(vec3f angles) {
+    inline mat4 rotationMat4FromEulerAngles(vec3f angles) {
         mat4 result;
 
         real32 cosa = cosReal32(angles.z);
@@ -103,13 +103,16 @@ namespace IME {
 
     inline 
     mat4 inverseOfOrthagonalMat4(const mat4& mat) {
-        IME::real32 x = -mat.rows[0].z;
-        IME::real32 y = -mat.rows[1].z;
-        IME::real32 z = -mat.rows[2].z;
+        vec3f pos;
 
-        mat3 inner = getInnerMat3(mat);
+        pos.x = -mat.rows[0].w;
+        pos.y = -mat.rows[1].w;
+        pos.z = -mat.rows[2].w;
 
-        return columnComposeMat4(toVec4_(inner.rows[0]), toVec4_(inner.rows[1]), toVec4_(inner.rows[2]), vec4f{x, y, z, 1.0f});
+        mat3 innerT = transposeMat3(getInnerMat3(mat));
+        pos = innerT * pos;
+
+        return rowComposeMat4(toVec4_(innerT.rows[0], pos.x), toVec4_(innerT.rows[1], pos.y), toVec4_(innerT.rows[2], pos.z), {0.0f, 0.0f, 0.0f, 1.0f});
     }
 
     template<typename T> 

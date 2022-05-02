@@ -5,11 +5,6 @@
 
 namespace IME {
 
-    real32
-    stringToFloat(const char* str) {
-        return strtof(str, nullptr);
-    } 
-
     inline uint32
     stringToUsnignedInt(const char* str, uint32 n) {
 

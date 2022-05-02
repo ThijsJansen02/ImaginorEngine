@@ -7,6 +7,7 @@
 #include "rendering.h"
 #include "datastructures/strings/string.h"
 #include "functionality.h"
+#include "datastructures/maps/hashmap.h"
 
 namespace IME::UI {
 
@@ -22,18 +23,37 @@ namespace IME::UI {
 
     typedef Pair<bool32, bool32> eventresult; 
 
+    inline sizeptr
+    stringhash(const String& string)
+    {
+        const char* str = string.getCstring();
+
+        sizeptr hash = 5381;
+        uint32 c;
+
+        while (c = *str++)
+            hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+        return hash;
+    }
+
     enum ElementType {
         NONE,
         WINDOW,
         INPUTFIELD,
         PARAGRAPH,
-        IMAGE
+        IMAGE,
+        DOCKINGSPACE
     };
 
     struct ElementPtr {
-        uint32 offset = 0;
+        void* data;
         ElementType type = ElementType::NONE;
     };
+
+    inline bool operator==(ElementPtr el1, ElementPtr el2) {
+        return el1.data == el2.data;
+    }
 
     #define ON_MOUSE_CLICK_EVENT(name) UI::eventresult name(UI::ElementPtr element, Event e, UI::Layer* uilayer, const PlatformInterface& platform)
     typedef ON_MOUSE_CLICK_EVENT(on_mouse_click);
@@ -51,6 +71,12 @@ namespace IME::UI {
         BORDER,
         MARGIN,
         FLOAT
+    };
+
+    enum FloatingType {
+        LEFT,
+        RIGHT,
+        UNSET
     };
 
     struct ElementConstraint {
@@ -83,31 +109,6 @@ namespace IME::UI {
         return !(left == right);
     }
 
-    struct Window {
-        on_resize* onresize = nullptr;
-
-        Region region;
-        Region topbarregion;
-        Region contentregion;
-        Region borderregion;
-
-        String title;    
-        bool32 hovered;
-
-        Arraylist<ElementPtr> children;
-
-        gl_id framebuffer;
-        gl_id colorbuffer;
-        gl_id depthbuffer;
-        gl_id shader;
-    };
-
-    enum FloatingType {
-        LEFT,
-        RIGHT,
-        UNSET
-    };
-
     struct ElementConstraints {
         Region availableregion = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
         Region availablefloatingregion = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
@@ -129,10 +130,16 @@ namespace IME::UI {
         vec4f border = {0.0f, 0.0f, 0.0f, 0.0f};; //left right top bottom
 
         FloatingType floattype = UNSET;
+
+        Assets::Font* font;
     };
 
     struct ElementParameters {
         ElementConstraints parentcache;
+        Arraylist<ElementConstraint> elementconstraints;
+
+        on_mouse_click* onmouseclick = nullptr;
+        on_resize* onresize = nullptr;
 
         Region contentregion;
         Region backgroundregion;
@@ -146,32 +153,41 @@ namespace IME::UI {
         bool32 hovered;
     };
 
+    struct Window {
+        ElementParameters parameters;
+
+        Region region;
+        Region topbarregion;
+
+        String title;    
+        bool32 hovered;
+
+        Arraylist<ElementPtr> children;
+
+        Assets::FrameBuffer* framebuffer;
+
+        bool32 isdocked = false;
+    };
+
     struct Image {
-        on_mouse_click* onmouseclick = nullptr;
         ElementParameters parameters;
 
         Assets::Texture* texture;
-        Arraylist<ElementConstraint> elementconstraints;
     };
 
     struct Paragraph {
-        on_mouse_click* onmouseclick = nullptr;
-
         ElementParameters parameters;
 
         vec4f textcolor;
         real32 textsize;
         String text;
-
-        Arraylist<ElementConstraint> elementconstraints;
     };
 
     struct InputField {
-        on_mouse_click* onmouseclick = nullptr;
-        
+        ElementParameters parameters;
+      
         bool32 recievesinput = false;
 
-        ElementParameters parameters;
         vec4f textcolor;
         real32 textsize;
 
@@ -179,18 +195,26 @@ namespace IME::UI {
 
         uint32 cursorposition = 0.0f;
         real32 origin = 0;
+    };
 
-        Arraylist<ElementConstraint> elementconstraints;
+    struct DockingSpace {
+        ElementParameters parameters;
+
+        //Region region;
+        
+
+        Arraylist<Pair<ElementPtr, real32>> containers; 
+
+        //true = vertical split; false = horizontal split
+        bool horizontal = false;
     };
 
     struct Layer {
 
-        ElementArray<Window> windows;
-        ElementArray<Paragraph> paragraphs;
-        ElementArray<InputField> inputfields;
-        ElementArray<Image> images;
+        Arraylist<Window*> windows;
 
         UI::Arraylist<ElementPtr> windoworder;
+        UI::Arraylist<ElementPtr> dockingspaces;
 
         Assets::Font* basefont;
         gl_id composingshader;
@@ -201,23 +225,44 @@ namespace IME::UI {
         bool32 elementresizing = false;
         bool32 elementgrabbing = false;
         bool32 editinginputfield = false;
+        bool32 resizingdockedcontainer = false;
+        int32 editedcontaineredge = 0;
+
         ElementPtr editedelement = {0, NONE};
         ElementPtr focussedinput = {0, NONE};
 
+        Assets::Library* assets;
+        PlatformInterface* platform;
+
+        Data::HashMap_<String, ElementPtr, 512, stringhash, Memory::alloc, Memory::dealloc> tagmap;
+
         void* userpointer;
     };
+
 
     ElementPtr addWindowToLayer(Region windowregion, gl_id shader, const char* title, const PlatformInterface& platform, Layer* layer);
     ElementPtr addParagraph(const char* text, ElementPtr parent, Layer* uilayer);
     ElementPtr addInputField(const char* initialtext, ElementPtr parent, Layer* uilayer);
     ElementPtr addImage(Assets::Texture* image, ElementPtr parent, Layer* uilayer);
+    ElementPtr addDockingSpace(ElementPtr parent, Layer* uilayer);
+
+    void dockWindow(ElementPtr window, ElementPtr dockingspace, bool horizontal, uint32 index, UI::Layer* uilayer);
+    ElementPtr undockWindow(ElementPtr window, UI::Layer* uilayer); 
+
+    void destroyElement(ElementPtr el);
+
     bool32 addOnClickEventHandler(ElementPtr element, on_mouse_click* handler, Layer* uilayer);
     bool32 addOnResizeEventHandler(ElementPtr element, on_resize* handler, Layer* uilayer);
-    Region getContentRegion(ElementPtr element, const Layer& uilayer);
+    Region getContentRegion(ElementPtr element);
 
-    Layer createLayer(gl_id composingshader, const PlatformInterface& platform, Assets::Font* basefont);
+    void addTag(ElementPtr element, const char* tag, Layer* layer);
+    ElementPtr getElementByTag(const char* tag, Layer* layer);
+
+    Layer createLayer(gl_id composingshader, PlatformInterface* platform, Assets::Font* basefont, Assets::Library* assets);
     bool32 propagateEventToLayer(Event e, Layer* layer, const PlatformInterface& platform);
     void calculateElementsForWindow(ElementPtr window, const Layer& layer);
+    void calculateAllElements(const Layer& layer);
     void pushLayerToRenderSet(const Layer& layer, Rendering::RenderSet* renderset, const mat4& projection, const PlatformInterface& platform);
-    bool32 addConstraint(ElementPtr element, ElementConstraintType type, const char* value, Layer* uilayer);
+    bool32 addConstraint(ElementPtr element, ElementConstraintType type, const char* value);
+    bool32 removeConstraint(ElementPtr element, ElementConstraintType type);
 }

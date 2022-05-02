@@ -15,12 +15,13 @@ set windowssdk=/I"C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\um
 set srcfiles=%prjdir%\src\DebugConsole.cpp %solutiondir%\ImaginorEngine\src\rendering\Renderer2D.cpp %solutiondir%\ImaginorEngine\src\memory.cpp
 set include=/I%solutiondir% /I%prjdir% /I%solutiondir%\ImaginorMath\src 
 set defines=/DIME_DEBUG /DIME_DLL_BUILD
-set libs=
+set libs=ImaginorEngine.lib
 set compilorflags=/MDd /std:c++17 /Zi /Fe:ImaginorDebugConsole.dll
 set linkerflags=/link /EXPORT:applicationUpdate /EXPORT:applicationInit /DLL /MAP /PDB:ImaginorEngine%fullstamp%.pdb
 
 pushd %outputdir%
 
+copy ..\ImaginorEngine\ImaginorEngine.lib 
 cl %compilorflags% %defines% %include% %windowssdk% %srcfiles% %libs% %linkerflags%
 
 copy ImaginorDebugConsole.dll ..\platform

@@ -34,9 +34,6 @@ namespace IME {
         );
     
     real32 getCharacterLength(char character, real32 scalefactor, const Assets::Font& font);
-
-    real32 stringToFloat(const char* str);
-
     bool32 stringCompare(const char* a, const char* b);
 
 }

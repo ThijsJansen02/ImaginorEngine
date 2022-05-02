@@ -9,6 +9,14 @@ namespace IME::Data {
     class String
     {
     public:
+        String() = default;
+
+        static String create(const char* str) {
+            String result;
+            result.set(str);
+            return result;
+        }
+
         void set(const char* string) {
             if(m_Data) {
                 clear();
@@ -26,6 +34,10 @@ namespace IME::Data {
             String result;
             result.set(this->m_Data);
             return result;
+        }
+
+        bool operator==(String other) {
+            return compareStrings(this->getCstring(), other.getCstring());
         }
 
         void insert(char c, uint32 pos) {

@@ -825,12 +825,11 @@ openGLMessageCallback( GLenum source,
     case GL_DEBUG_SEVERITY_HIGH:
         event.param1 = IME::IME_ERROR;
         severitystr = "HIGH";
-        IME_DEBUG_BREAK()
+    //IME_DEBUG_BREAK()
         break;
     case GL_DEBUG_SEVERITY_MEDIUM:
         event.param1 = IME::IME_WARN;
         severitystr = "MEDIUM";
-        //IME_DEBUG_BREAK()
         break;
     case GL_DEBUG_SEVERITY_LOW:
         event.param1 = IME::IME_WARN;

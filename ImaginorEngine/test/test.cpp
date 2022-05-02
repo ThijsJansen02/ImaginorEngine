@@ -25,7 +25,17 @@ namespace IME::Test {
         IME::Data::ArrayList_<int, allocate, deallocate> array;
         array.init(0);
 
+        array.push_back(0);
+        array.push_back(1);
+        array.push_back(2);
+        array.insert(9, 2);
+        array.push_back(3);
+        array.push_back(4);
+        array.push_back(5);
+        array.push_back(6);
+        array.push_back(7);
 
+        array.destroy();
         
 
     }
@@ -59,7 +69,8 @@ namespace IME::Test {
         Data::String<Memory::alloc, Memory::dealloc> string;
         Data::String<Memory::alloc, Memory::dealloc> string2;
 
-        Data::ArrayList_<uint32, Memory::alloc, Memory::dealloc> array = Data::ArrayList_<uint32, Memory::alloc, Memory::dealloc>::create(0);
+        Data::ArrayList_<uint32, Memory::alloc, Memory::dealloc> array;
+        array.init(0);
         array.push_back(24);
         array.push_back(24);
         array.push_back(24);
@@ -95,9 +106,6 @@ namespace IME::Test {
         
 
 
-
-
-
     }
 }
 
@@ -105,8 +113,8 @@ namespace IME::Test {
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
 
-    IME::Test::fragmentedArrayListTest();
-    IME::Test::testmemoryallocator();
+    IME::Test::testArrayList();
+    
 
     return 0;
 }

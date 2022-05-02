@@ -3,6 +3,7 @@
 #include <datastructures/ecs/ecs.h>
 #include <datastructures/strings/string.h>
 #include "assets.h"
+#include "script.h"
 
 namespace IME::Scene {
 
@@ -34,5 +35,18 @@ namespace IME::Scene {
         mat4 projection;
 
         COMPONENT()
+    };
+
+    struct ScriptComponent {
+        COMPONENT()
+
+        IME::alloc_script* alloc;
+        IME::dealloc_script* dealloc;
+        IME::script_init* init;
+        IME::script_on_update* onupdate;
+        IME::script_on_event* onevent;
+
+        void* data;
+
     };
 }

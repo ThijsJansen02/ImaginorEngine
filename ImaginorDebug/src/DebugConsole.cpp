@@ -71,7 +71,7 @@ namespace IME
         FileBuffer imagefilebuffer = platform.io.debug_readfile(filename, nullptr); 
         int32 channels;
         uint8* datasrc = stbi_load_from_memory((stbi_uc*)imagefilebuffer.data, imagefilebuffer.size, &props.width, &props.height, &channels, 3);
-        props.format = IME_R;
+        props.format = IME_A;
         props.generatemipmaps = false;
         props.magfilter = IME_NEAREST;
         props.minfilter = IME_NEAREST;
@@ -198,33 +198,7 @@ namespace IME
 
         state.mainmemory = createMemoryPool(&state.memoryarena, state.memoryarena.size, 1024);
 
-        state.textureatlas = loadTextureAtlas("bitmap_font.png", 18, 7, platform);
-        state.textureatlas.offset = 32;
         
-        state.textshader = Renderer2D::loadBatchShader("batchvertexshader.glsl", "textfragment.glsl", &platform);
-
-        state.messages = ArrayList<char*>::create(10);
-
-        real32 windowheight = platform.window.height / 20.0f;
-        real32 aspectratio = (real32)platform.window.width / (real32)platform.window.height;
-        mat4 projection = OrthographicMat4(0, aspectratio * windowheight, 0, windowheight, -1.0f, 1.0f);
-
-        //shader setup
-        FileBuffer fragmentShadersrc = platform.io.debug_readfile("textfragment.glsl", nullptr);
-        FileBuffer vertexshadersrc = platform.io.debug_readfile("batchvertexshader.glsl", nullptr);
-
-        Renderer2D::setup(&state.batchrendererdata, 4096, platform.gfx, &state.mainmemory);
-        
-        platform.io.debug_releasefilememory(&fragmentShadersrc);
-        platform.io.debug_releasefilememory(&vertexshadersrc);
-
-        //seting up uniform buffer
-        state.matrices.model = identity();
-        state.matrices.view = identity();
-        state.matrices.projection = projection;
-
-        state.matrixbuffer = platform.gfx.createubo((byte*)&state.matrices, sizeof(uboMatrices), IME_DYNAMIC_DRAW);
-        platform.gfx.bindubo(state.matrixbuffer, 0, 0, 0);
 
         *(ApplicationState*)platform.appmemory.persistentstorage = state;
         return true;
@@ -272,57 +246,7 @@ namespace IME
             }
         }
     
-        platform.gfx.setviewport(0, 0, platform.window.width, platform.window.height);
-
-        real32 aspectratio = (real32)platform.window.width / (real32)platform.window.height;
-        real32 windowheight = platform.window.height / 12.0f;
-        real32 windowwidth = aspectratio * windowheight;
-
-        mat4 projection = OrthographicMat4(0, windowwidth, 0, windowheight, -1.0f, 1.0f);
-        //mat4 projection = OrthographicMat4(0, 100.0f, 0, 100.0f, -1.0f, 1.0f);
-
-        Renderer2D::setShader(state.textshader);
-        Renderer2D::beginScene(projection);
-        Renderer2D::pushTexture(state.textureatlas.texture);
-
-        real32 y = 8.0f;
-        for (int i = state.messages.getCount() - 1; i >= 0; --i) {
-
-            if (y > windowheight) {
-                break;
-            }
-
-            if(state.messages[i] == nullptr) {
-                IME_DEBUG_BREAK()
-            }
-
-            y += calcTextHeight(state.messages[i], { 1.0f, 1.0f }, windowwidth) + 0.4f;
-            drawStringFromTextureAtlas(state.messages[i], { 0.0f, y }, { 1.0f, 1.0f }, state.textureatlas, windowwidth, {1.0f, 1.0f, 1.0f, 1.0f});
-        }
-
-        Renderer2D::drawQuadTL({0.0f, 7.5f}, {windowwidth, 0.5f}, {1.0f, 1.0f, 1.0f, 1.0f});
-        Renderer2D::drawQuadTL({0.0f, 7.0f}, {windowwidth, 7}, {0.0f, 0.0f, 0.0f, 1.0f});
-
-        char buffer[256];
-
-        uint32 count = state.messages.getCount();
-        sprintf_s(buffer, 256, "messages: %u", count);
-        drawStringFromTextureAtlas(buffer, {0.0f, 4.0f}, {1.0f, 1.0f}, state.textureatlas, windowwidth, {0.0f, 1.0f, 0.0f, 1.0f});
-
-        uint32 poolchunkcount = state.mainmemory.poolchunkcount;
-        sprintf_s(buffer, 256, "fragmentation: %u", poolchunkcount);
-        drawStringFromTextureAtlas(buffer, {0.0f, 5.0f}, {1.0f, 1.0f}, state.textureatlas, windowwidth, {0.0f, 1.0f, 0.0f, 1.0f});
-
-        uint32 largestpoolchunk = state.mainmemory.largestpoolchunk;
-        sprintf_s(buffer, 256, "largest poolchunk: %u", largestpoolchunk);
-        drawStringFromTextureAtlas(buffer, {0.0f, 6.0f}, {1.0f, 1.0f}, state.textureatlas, windowwidth, {0.0f, 1.0f, 0.0f, 1.0f});
-
-        uint32 used = (uint32)state.mainmemory.used;
-        sprintf_s(buffer, 256, "memory used: %zu bytes, amount of bytes in reserve: %zd", used, state.mainmemory.size - used);
-        drawStringFromTextureAtlas(buffer, {0.0f, 7.0f}, {1.0f, 1.0f}, state.textureatlas, windowwidth, {0.0f, 1.0f, 0.0f, 1.0f});
-
-        Renderer2D::endScene();
-        Renderer2D::flush();
+       
 
         *(ApplicationState*)platform.appmemory.persistentstorage = state;
         return true;

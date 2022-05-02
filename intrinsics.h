@@ -3,9 +3,28 @@
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
+#include <cstdlib>
 
 namespace IME
 {
+    inline bool compareStrings(const char* s1, const char* s2) {
+        int32 result = strcmp(s1, s2);
+        return !*(bool*)&result;
+    }
+
+    inline void int32ToString(char* buffer, uint32 value, sizeptr s) {
+        sprintf_s(buffer, s, "%d", value);
+    }
+
+    inline uint32 stringToInt32(const char* string) {
+        return atoi(string);
+    }
+
+    inline real32
+    stringToReal32(const char* str) {
+        return strtof(str, nullptr);
+    } 
+
     inline real32 squareRootReal32(IME::real32 value) {
         return sqrtf(value);
     }
@@ -88,11 +107,11 @@ namespace IME
     inline void
     copy(byte* src, byte* dst, sizeptr size) {
         
-        for (int64 i = size - 1; i >= 0; i--) {
-            dst[i] = src[i];
-        }
+        //for (int64 i = ((int64)size) - 1; i >= 0; i--) {
+        //    dst[i] = src[i];
+        //}
 
-        //memcpy((void*)dst, (void*)src, size);
+        memcpy((void*)dst, (void*)src, size);
     } 
 
     inline void

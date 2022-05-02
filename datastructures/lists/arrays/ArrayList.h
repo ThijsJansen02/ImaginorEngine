@@ -49,6 +49,7 @@ namespace IME::Data {
 
         inline void destroy() {
 
+            IME_DEBUG_ASSERT_BREAK(m_Data, "no data to be removed")
             dealloc(this->m_Capacity * sizeof(T), (byte*)this->m_Data);
             this->m_Capacity = 0;
             this->m_Count = 0;
@@ -57,10 +58,10 @@ namespace IME::Data {
 
         inline static ArrayList_ copy(const ArrayList_& list) {
             ArrayList_ result;
-            result.m_Data = (T*)alloc(list.capacity * sizeof(T));
-            result.m_Capacity = list.capacity;
-            result.m_Count = list.count;
-            IME::copy(list.m_Data, result.m_Data, list.m_Capacity * sizeof(T));
+            result.m_Data = (T*)alloc(list.m_Capacity * sizeof(T));
+            result.m_Capacity = list.m_Capacity;
+            result.m_Count = list.m_Count;
+            IME::copy((byte*)list.m_Data, (byte*)result.m_Data, list.m_Capacity * sizeof(T));
 
             return result;
         }
@@ -78,12 +79,51 @@ namespace IME::Data {
             m_Data[m_Count++] = data;
         }
 
+        inline void insert(const T& value, uint32 index) {
+            IME_DEBUG_ASSERT_BREAK(index <= m_Count, "index is to hight")
+
+            if(m_Count + 1 > m_Capacity) {
+                sizeptr newcapacity = (sizeptr)((real32)(m_Capacity + 1) * 1.5);
+
+                T* newdata = (T*)alloc(newcapacity * sizeof(T));
+                if(m_Data != nullptr) {
+                    IME::copy((IME::byte*)m_Data, (IME::byte*)(newdata), index * sizeof(T));
+                    IME::copy((IME::byte*)(m_Data + index), (IME::byte*)(newdata + index + 1), (m_Count - index) * sizeof(T));
+                    dealloc(m_Capacity * sizeof(T), (byte*)m_Data);
+                }
+                m_Data = newdata;
+                m_Capacity = newcapacity;
+                m_Data[index] = value;
+                ++m_Count;
+            } else {
+                IME::copy((IME::byte*)(m_Data + index), (IME::byte*)(m_Data + index + 1), (m_Count - index) * sizeof(T));
+                m_Data[index] = value;
+                ++m_Count;
+            }
+        }
+
+        inline void replace(const T& value, const T& newdata) {
+            for(uint32 i = 0; i < getCount(); i++) {
+                if(m_Data[i] == value) {
+                    m_Data[i] = newdata;
+                }
+            }
+        }
+
+        inline void replace_at_index(uint32 index, const T& newdata) {
+            for(uint32 i = 0; i < getCount(); i++) {
+                if(m_Data[i] == value) {
+                    m_Data[i] = newdata;
+                }
+            }
+        }
+
         inline void push_front(const T& data) {
             if(m_Count + 1 > m_Capacity) {
                 sizeptr newcapacity = (m_Capacity + 1) * 1.5;
 
-                T* newdata = (T*)alloc(newcapacity);
-                IME::copy(data, newdata + 1, m_Count * sizeof(T));
+                T* newdata = (T*)alloc(newcapacity * sizeof(T));
+                IME::copy((IME::byte*)m_Data, (IME::byte*)(newdata + 1), m_Count * sizeof(T));
                 if(m_Data != nullptr) {
                     dealloc(m_Capacity * sizeof(T), (byte*)m_Data);
                 }
@@ -92,7 +132,7 @@ namespace IME::Data {
                 m_Data[0] = data;
                 ++m_Count;
             } else {
-                IME::copy(data, data + 1, m_Count * sizeof(T));
+                IME::copy((IME::byte*)m_Data, (IME::byte*)(m_Data + 1), m_Count * sizeof(T));
                 m_Data[0] = data;
                 ++m_Count;
             }
@@ -130,6 +170,15 @@ namespace IME::Data {
 
             IME::copyforwards((IME::byte*)(m_Data + index + 1), (IME::byte*)(m_Data + index), (m_Count - index - 1) * sizeof(T));
             m_Count -= 1;
+        }
+
+        inline void remove(const T& value) {
+
+            for(uint32 i = 0; i < getCount(); i++) {
+                if(m_Data[i] == value) {
+                    remove(i);
+                }
+            }
         }
 
         inline void shrink() {

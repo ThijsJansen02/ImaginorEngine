@@ -1,7 +1,7 @@
 #pragma once
 #include <core.h>
 #include "../iterators/iterator_L.h"
-#include "../View.h";
+#include "../View.h"
 
 namespace IME::Data {
 
@@ -29,13 +29,46 @@ namespace IME::Data {
 			const ValueType& getValue() const {
 				return m_Val;
 			}
+			friend class DoublyLinkedList_;
 
 		protected:
-			friend class DoublyLinkedList<T>;
 
 			Node* m_Next = nullptr;
 			Node* m_Prev = nullptr;
 			ValueType m_Val;
+		};
+
+		struct ProxyNode {
+			Node* m_Next = nullptr;
+			Node* m_Prev = nullptr;
+		};
+
+		struct iterator {
+			iterator(Node* node) {
+				m_Node = node;
+			}
+
+			void operator++() {
+				m_Node = m_Node->getNext();
+			}
+
+			void operator--() {
+				m_Node = m_Node->getPrev();
+			}
+
+			bool operator==(iterator other) {
+				return this->m_Node == other.m_Node;
+			}
+
+			bool operator!=(iterator other) {
+				return !(this->m_Node == other.m_Node);
+			}
+
+			Node* operator*() {
+				return m_Node;
+			}
+
+			Node* m_Node;
 		};
 
 
@@ -43,7 +76,7 @@ namespace IME::Data {
 		using ReferenceType = ValueType&;
 		using PointerType = ValueType*;
 
-		using iterator = iterator_L_base<Node>;
+		using iterator = iterator;
 		using const_iterator = iterator_L_base_const<Node>;
 
 		void init() {
@@ -51,7 +84,9 @@ namespace IME::Data {
 			m_Tail = nullptr;
 
 			m_Count = 0;
-			Node* tail = (Node*) ::operator allocator(sizeof(Node));
+			Node* tail = (Node*)allocator(sizeof(ProxyNode));
+			tail->m_Next = nullptr;
+			tail->m_Prev = nullptr;
 			m_Head = tail;
 			m_Tail = tail;
 		}
@@ -200,9 +235,10 @@ namespace IME::Data {
 		
 		void push_front(const T& val) {
 
-			Node* newnode = allocator(sizeof(Node));
+			Node* newnode = (Node*)allocator(sizeof(Node));
 			*newnode = Node(val, m_Head, nullptr);
-			m_Head.m_Prev = newnode;
+			newnode->m_Next = m_Head;
+			m_Head->m_Prev = newnode;
 			m_Head = newnode;
 			m_Count++;
 			return;
@@ -210,10 +246,11 @@ namespace IME::Data {
 
 		void push_back(const T& val) {
 			
-			Node* newtail = (Node*) ::operator allocator(sizeof(Node));
-			newtail->m_Prev = m_Tail;
-			m_Tail->m_Next = newtail;
-			m_Tail = newtail;
+			Node* newnode = (Node*)allocator(sizeof(Node));
+			newnode->m_Next = m_Tail;
+			newnode->m_Prev = m_Tail->m_Prev;
+			m_Tail->m_Prev = newnode;
+
 			m_Count++;
 			return;
 		}
@@ -230,7 +267,6 @@ namespace IME::Data {
 			begin() == end();
 		}
  
-	private:
 		Node* m_Head;
 		Node* m_Tail;
 

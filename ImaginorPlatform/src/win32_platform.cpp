@@ -495,7 +495,6 @@ IME::uint64 zip(IME::uint32 v1, IME::uint32 v2) {
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {   
-    /*
     DWORD ThreadID;
     HANDLE threadhandle = CreateThread(
         0,
@@ -503,7 +502,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         IME::consoleThread,
         &IME::consoleevents,
         0, &ThreadID
-    );*/
+    );
 
     QueryPerformanceFrequency(&IME::performancefrequency);
     IME::real64 desiredframetime = 1.0f / 120.0f;

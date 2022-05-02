@@ -100,8 +100,8 @@ namespace IME::Data {
         struct View {
             struct iterator {
                 iterator(ComponentData<Comp>* ptr) : m_Ptr(ptr) {}
-                std::pair<Comp&, Entity&> operator*() {
-                    return std::pair<Comp&, Entity&>{m_Ptr->component, m_Ptr->entity};
+                ComponentData<Comp>& operator*() {
+                    return *m_Ptr;
                 }
 
                 bool32 operator==(iterator other) {
