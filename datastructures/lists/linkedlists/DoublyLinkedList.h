@@ -196,9 +196,14 @@ namespace IME::Data {
 			m_Count++;
 		}
 
-		void remove(T* instanceptr) {
-
+		void remove(Node* node) {
+			Node* prev = node->m_Prev;
+			Node* next = node->m_Next;
 			
+			prev->m_Next = next;
+			next->m_Prev = prev;
+
+			deallocator(sizeof(Node), (byte*)node);
 		}
 
 

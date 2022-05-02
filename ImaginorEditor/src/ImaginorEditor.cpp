@@ -112,6 +112,7 @@ namespace IME::Editor
         char buffer[64];
         sprintf_s(buffer, 64, "%.0fpx", UI::getContentRegion(uilayer->basewindow).height);
         UI::addConstraint(uilayer->basewindow, UI::HEIGHT, buffer);
+        UI::addConstraint(uilayer->basewindow, UI::BACKGROUND_COLOR, "1.0, 0.0, 0.0, 1.0");
         UI::addOnResizeEventHandler(uilayer->basewindow, basewindowresize, uilayer);
 
         UI::ElementPtr input = UI::addInputField("some nice input", uilayer->basewindow, uilayer);
@@ -179,14 +180,12 @@ namespace IME::Editor
         script.init(script.data, scene, camera);
         Scene::addComponentToEntity(camera, script, scene);
 
-        /*
         UI::ElementPtr examplewindow = UI::addWindowToLayer({100.0f, 800.0f, 0.0f, 300.0f, 300.0f}, 0, "example window", platform, uilayer);
         UI::addConstraint(examplewindow, UI::BACKGROUND_COLOR, "0.3, 0.3, 0.3, 1.0");
         UI::addConstraint(examplewindow, UI::BORDER, "1.0px, 1.0px, 1.0px, 1.0px");
         UI::ElementPtr examplewindow2 = UI::addWindowToLayer({400.0f, 800.0f, 0.0f, 300.0f, 300.0f}, 0, "example window 2", platform, uilayer);
         UI::addConstraint(examplewindow2, UI::BACKGROUND_COLOR, "0.3, 0.3, 0.3, 1.0");
         UI::addConstraint(examplewindow2, UI::BORDER, "1.0px, 1.0px, 1.0px, 1.0px");
-        */
 
         UI::ElementPtr scenewindow = loadSceneView(stateptr, {0.0f, 1000.0f, 0.0f, 300.0f, 400.0f}, platform);
         UI::dockWindow(scenewindow, ds, false, 0, uilayer);

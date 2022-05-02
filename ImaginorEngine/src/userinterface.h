@@ -150,6 +150,8 @@ namespace IME::UI {
         vec4f bordercolor;
         ElementPtr parent;
 
+        String* tag = nullptr;
+
         bool32 hovered;
     };
 
@@ -201,7 +203,8 @@ namespace IME::UI {
         ElementParameters parameters;
 
         //Region region;
-        
+        bool32 iscontainerresizing;
+        uint32 edge;
 
         Arraylist<Pair<ElementPtr, real32>> containers; 
 

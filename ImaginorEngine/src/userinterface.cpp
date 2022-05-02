@@ -354,6 +354,8 @@ namespace IME::UI {
         result.containers.init(0);
         result.parameters.parent = parent;
         result.parameters.elementconstraints.init(0);
+        result.iscontainerresizing = false;
+        result.edge = 0;
 
         ElementPtr ptr = {nullptr, DOCKINGSPACE};
 
@@ -370,12 +372,21 @@ namespace IME::UI {
         return ptr;
     }
 
+    void destroyElementParameters(ElementParameters* p, Layer* layer) {
+        if(p->tag) {
+            layer->tagmap.removeKey(*p->tag);
+        }
+        p->elementconstraints.destroy();
+    }
 
     void destroyDockingSpace(ElementPtr el, Layer* layer) {
         DockingSpace* d = (DockingSpace*)el.data;
 
-        d->parameters.elementconstraints.destroy();
         d->containers.destroy();
+        layer->dockingspaces.remove(el);
+
+        destroyElementParameters(&d->parameters, layer);
+
         Memory::dealloc(sizeof(DockingSpace), (byte*)el.data);
     }
 
@@ -464,6 +475,8 @@ namespace IME::UI {
                         result.parameters.parent = d->parameters.parent;
                         result.containers.init(0);
                         result.parameters.elementconstraints = d->parameters.elementconstraints;
+                        result.iscontainerresizing = false;
+                        result.edge = 0;
 
                         d->parameters.elementconstraints.init(0);
                         addConstraint(dockingspace, WIDTH, "100%");
@@ -497,6 +510,8 @@ namespace IME::UI {
                         result.parameters.parent = d->parameters.parent;
                         result.containers.init(0);
                         result.parameters.elementconstraints = d->parameters.elementconstraints;
+                        result.iscontainerresizing = false;
+                        result.edge = 0;
 
                         d->parameters.elementconstraints.init(0);
                         addConstraint(dockingspace, WIDTH, "100%");
@@ -534,10 +549,14 @@ namespace IME::UI {
                         real32 size = d->containers[0].v2 / 2.0f;
                         d->containers[0].v2 = size;
                         d->containers.insert({window, size}, index);
-                    }
-                    if(index == d->containers.getCount()) {
+                    } else if(index == d->containers.getCount()) {
                         real32 size = d->containers[index - 1].v2 / 2.0f;
                         d->containers[index-1].v2 = size;
+                        d->containers.insert({window, size}, index);
+                    } else {
+                        real32 size = (1.0f/3.0f) * d->containers[index - 1].v2 + (1.0f/3.0f) * d->containers[index + 1].v2;
+                        d->containers[index - 1].v2 -= size / 2.0f;
+                        d->containers[index].v2 -= size / 2.0f;
                         d->containers.insert({window, size}, index);
                     }
                 }
@@ -697,6 +716,7 @@ namespace IME::UI {
         Region windowregion = window->region;
 
         if(window->isdocked) {
+
             if(window->region.width != parentinfo.availableregion.width || window->region.height != parentinfo.availableregion.height) {
                 Assets::resizeFrameBuffer((uint32)parentinfo.availableregion.width, (uint32)parentinfo.availableregion.height, window->framebuffer, *uilayer.platform);
                 if(window->parameters.onresize) {
@@ -895,7 +915,8 @@ namespace IME::UI {
     }
 
     void addTag(ElementPtr element, const char* tag, Layer* layer) {
-        layer->tagmap.add(String::create(tag), element);
+        auto keyvalue = layer->tagmap.add(String::create(tag), element);
+        ((ElementParameters*)element.data)->tag = &keyvalue->k;
     }
 
     ElementPtr getElementByTag(const char* tag, Layer* layer) {
@@ -1195,6 +1216,8 @@ namespace IME::UI {
         return {e1.v1 || e2.v1, e1.v2 || e2.v2};
     }
 
+    eventresult elementOnMouseMoveEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform);
+
     eventresult paragraphOnMouseMoveEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform) {
 
         Paragraph* p = (Paragraph*)element.data;
@@ -1206,12 +1229,89 @@ namespace IME::UI {
         return eventresult{false, false};
     }
 
+    eventresult windowOnMouseMoveEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform) {
+
+        Window* w = (Window*)element.data;
+
+        if(isPointInRegion(relativemousepos, w->region)) {
+
+            if(isPointInRegion(relativemousepos, w->topbarregion)) {
+                return {true, false};
+            }
+
+            vec2f newrelativemousepos = relativemousepos - (toVec2(w->region.topleft) - vec2f{0.0f, w->region.height}); 
+            for(ElementPtr child : w->children) {
+                elementOnMouseMoveEvent(child, e, newrelativemousepos, layer, platform);
+            }
+
+        }
+    }
+
+    eventresult dockingSpaceOnMouseMoveEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform) {
+
+        DockingSpace* d = (DockingSpace*)element.data;
+
+        if(isPointInRegion(relativemousepos, d->parameters.contentregion)) {
+            if(d->iscontainerresizing) {
+                if(!d->horizontal) {
+                    real32 offset = 0.0f;
+                    for(uint32 i = 0; i < d->edge; i++) {
+                        offset += d->containers[i].v2 * d->parameters.contentregion.width;
+                    }
+
+                    real32 leftwidth = d->containers[d->edge].v2;
+                    real32 rightwidth = d->containers[d->edge + 1].v2;
+                    real32 totalrelativewidth = leftwidth + rightwidth;
+                    real32 totalwidth = totalrelativewidth * d->parameters.contentregion.width;
+
+                    real32 x = relativemousepos.x - d->parameters.contentregion.x - offset;
+
+                    if(x < 0.0f + 40.0f || x > totalwidth - 40.0f) {
+                        return {true, false};
+                    }
+
+                    d->containers[d->edge].v2 = (x / totalwidth) * totalrelativewidth;
+                    d->containers[d->edge + 1].v2 = ((totalwidth - x) / totalwidth) * totalrelativewidth;
+                    
+                    calculateDockingSpaceParameters(element, d->parameters.parentcache, *layer);
+                } else {
+                    real32 offset = 0.0f;
+                    for(uint32 i = 0; i < d->edge; i++) {
+                        offset += d->containers[i].v2 * d->parameters.contentregion.height;
+                    }
+
+                    real32 leftwidth = d->containers[d->edge].v2;
+                    real32 rightwidth = d->containers[d->edge + 1].v2;
+                    real32 totalrelativewidth = leftwidth + rightwidth;
+                    real32 totalwidth = totalrelativewidth * d->parameters.contentregion.height;
+
+                    real32 y = d->parameters.contentregion.y - relativemousepos.y - offset;
+
+                    if(y < 0.0f || y > totalwidth) {
+                        return {true, false};
+                    }
+
+                    d->containers[d->edge].v2 = (y / totalwidth) * totalrelativewidth;
+                    d->containers[d->edge + 1].v2 = ((totalwidth - y) / totalwidth) * totalrelativewidth;
+                    
+                    calculateDockingSpaceParameters(element, d->parameters.parentcache, *layer);
+                }
+
+            }
+
+            for(auto [container, size] : d->containers) {
+                elementOnMouseMoveEvent(container, e, relativemousepos, layer, platform);
+            }
+        }
+
+    }
+
     eventresult elementOnMouseMoveEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform) {
         switch (element.type)
         {
-        case PARAGRAPH: 
-            return paragraphOnMouseMoveEvent(element, e, relativemousepos, layer, platform); 
-            break;
+        case PARAGRAPH: return paragraphOnMouseMoveEvent(element, e, relativemousepos, layer, platform); break;
+        case WINDOW: return windowOnMouseMoveEvent(element, e, relativemousepos, layer, platform); break;
+        case DOCKINGSPACE: return dockingSpaceOnMouseMoveEvent(element, e, relativemousepos, layer, platform); break;
         default:
             return {false, false};
         }
@@ -1388,12 +1488,15 @@ namespace IME::UI {
                     real32 size = d->containers[i].v2;
                     offset+=size * d->parameters.contentregion.width;
                     edge.width = 20.0f;
-                    edge.x += offset - 10.0f;
+                    edge.x = d->parameters.contentregion.x + offset - 10.0f;
 
                     if(isPointInRegion(relativemousepos, edge)) {
                         layer->editedcontaineredge = i;
                         layer->resizingdockedcontainer = true;
                         layer->editedelement = element;
+
+                        d->iscontainerresizing = true;
+                        d->edge = i;
 
                         return {true, false};
                     }
@@ -1403,12 +1506,15 @@ namespace IME::UI {
                     real32 size = d->containers[i].v2;
                     offset+=size * d->parameters.contentregion.height;
                     edge.height = 20.0f;
-                    edge.y -= (offset - 10.0f);
+                    edge.y = d->parameters.contentregion.y - (offset - 10.0f);
 
                     if(isPointInRegion(relativemousepos, edge)) {
                         layer->editedcontaineredge = i;
                         layer->resizingdockedcontainer = true;
                         layer->editedelement = element;
+
+                        d->iscontainerresizing = true;
+                        d->edge = i;
 
                         return {true, false};
                     }
@@ -1695,10 +1801,17 @@ namespace IME::UI {
             }
 
             if(e.param1 == IME_LEFT_MB) {
+                if(layer->editedelement.type == DOCKINGSPACE) {
+                    DockingSpace* d = (DockingSpace*)layer->editedelement.data;
+                    d->iscontainerresizing = false;
+                    d->edge = 0;
+                }
                 layer->editedelement = {0, NONE};
                 layer->elementresizing = false;
                 layer->elementgrabbing = false;
                 layer->resizingdockedcontainer = false;
+
+                
             }
 
         }
@@ -1707,6 +1820,8 @@ namespace IME::UI {
             real32 posx = (real32)e.param1;
             real32 posy = platform.window.height - (real32)e.param2;
             vec2f mousepos = {posx, posy};
+
+            //check wether there are window children are hovered
             for(uint32 i = 0; i < layer->windows.getCount(); i++) {
 
                 Window* window = layer->windows[i];
@@ -1714,6 +1829,7 @@ namespace IME::UI {
                 if(isPointInRegion({posx, posy}, window->region)) { window->hovered = true; }
                 else { window->hovered = false; }
                 bool32 recalculate = false;
+
                 for(ElementPtr child : window->children) {
                     vec2f relativemousepos = mousepos - (toVec2(window->region.topleft) - vec2f{0.0f, window->region.height}); 
                     auto[ishandled, recalculate_] = elementOnMouseMoveEvent(child, e, relativemousepos, layer, platform);

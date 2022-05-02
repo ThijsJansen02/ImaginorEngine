@@ -49,6 +49,17 @@ namespace IME::Data {
 
             return nullptr;
         }
+
+        void removeKey(const key& key) {
+            sizeptr index = hashfunc(key) % mapsize;
+            DoublyLinkedList_<KeyValuePair, allocator, deallocator> list = hashtable[index];
+            for(auto node : list) {
+                if(node->getValue().k == key) {
+                    list.remove(node);
+                }
+            }
+
+        }
     };
 
 
