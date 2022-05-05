@@ -9,4 +9,4 @@
 *.imr
 build/**/*.txt
 /.vs
-
+/bin
