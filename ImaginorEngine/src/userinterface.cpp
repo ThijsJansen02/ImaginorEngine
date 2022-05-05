@@ -40,6 +40,7 @@ namespace IME::UI {
         if(stringCompare(extbuffer, "px")) { return {stringToReal32(buffer), Extension::PIXELS};}
         if(stringCompare(extbuffer, "%"))  { return {stringToReal32(buffer), Extension::PERCENTAGE}; }
         if(stringCompare(extbuffer, "")) {return {stringToReal32(buffer), Extension::NOEXIST}; }
+        if(stringCompare(extbuffer, "f")) {return {stringToReal32(buffer), Extension::NOEXIST}; }
         return {stringToReal32(buffer), Extension::FALSE};
     }
 
@@ -189,6 +190,18 @@ namespace IME::UI {
         }
     }
 
+    void translateTextColorConstraint(const char* value, ElementConstraints* targetconstraints, const ElementConstraints parentinfo) {
+        Pair<real32, Extension> values[4];
+
+        uint32 count = translateReal32ValuesWidthExtensions(value, values);
+        for(uint32 i = 0; i < count; i++) {
+            auto [value_, extension] = values[i];
+            if(extension == NOEXIST) {
+                targetconstraints->textcolor.data[i] = value_;
+            }
+        }
+    }
+
     void translateBackGroundColorConstraint(const char* value, ElementConstraints* targetconstraints, const ElementConstraints parentinfo) {
 
         Pair<real32, Extension> values[4];
@@ -230,6 +243,7 @@ namespace IME::UI {
 
             switch (constraint.type)
             {
+            case TEXT_COLOR: translateTextColorConstraint(constraint.value.getCstring(), &result, parentinfo); break;
             case WIDTH: translateWidthConstraint(constraint.value.getCstring(), &result, parentinfo); break;
             case HEIGHT: translateHeightConstraint(constraint.value.getCstring(), &result, parentinfo); break;
             case BACKGROUND_COLOR: translateBackGroundColorConstraint(constraint.value.getCstring(), &result, parentinfo); break;
@@ -281,7 +295,7 @@ namespace IME::UI {
         Region baseregion;
         baseregion.topleft = {0.0f, (real32)platform->window.width, -1.0f };
         baseregion.size = { (real32)platform->window.height, (real32)platform->window.width };
-        layer.basewindow = addWindowToLayer(baseregion, composingshader, "basewindow", *platform, &layer);
+        layer.basewindow = addWindowToLayer(baseregion, composingshader, "basewindow", *platform, &layer, NO_TOPBAR | NO_RESIZING | NO_DRAGGING);
 
         return layer;
     }
@@ -376,7 +390,9 @@ namespace IME::UI {
         if(p->tag) {
             layer->tagmap.removeKey(*p->tag);
         }
-        p->elementconstraints.destroy();
+        if(p->elementconstraints.getCapacity() > 0) {
+            p->elementconstraints.destroy();
+        }
     }
 
     void destroyDockingSpace(ElementPtr el, Layer* layer) {
@@ -390,26 +406,40 @@ namespace IME::UI {
         Memory::dealloc(sizeof(DockingSpace), (byte*)el.data);
     }
 
+    void destroyParagraph(ElementPtr el, Layer* layer) {
+        Paragraph* p = (Paragraph*)el.data;
+
+        p->text.clear();
+        destroyElementParameters(&p->parameters, layer);
+        Memory::dealloc(sizeof(Paragraph), (byte*)el.data);
+    }
+
     void destroyElement(ElementPtr el, Layer* layer) {
         switch(el.type) {
             case DOCKINGSPACE: destroyDockingSpace(el, layer);
+            case PARAGRAPH: destroyParagraph(el, layer);
         }
     }
 
     Region subtractBordersFromRegion(Region region, const vec4f& borders);
 
-    ElementPtr addWindowToLayer(Region windowregion, gl_id shader, const char* title, const PlatformInterface& platform, Layer* layer) {
+    ElementPtr addWindowToLayer(Region windowregion, gl_id shader, const char* title, const PlatformInterface& platform, Layer* layer, uint32 flags) {
         Window window;
         window.region = windowregion;
+        window.flags = flags;
 
+        /*
         window.topbarregion = { 0.0f, windowregion.height, 0.0f, windowregion.width, topbarheight};
         window.parameters.borderregion = {0.0f, windowregion.height - topbarheight, 0.0f, windowregion.width, windowregion.height - topbarheight};
         window.parameters.contentregion = subtractBordersFromRegion(window.parameters.borderregion, {1.0f, 1.0f, 0.0f, 1.0f});
-        window.parameters.contentregion.z += 0.2f;
+        window.parameters.contentregion.z += 0.2f;*/
 
         window.children.init(0);
         window.title.set(title);
         window.parameters.elementconstraints.init(0);
+
+        window.scroll = 0.0f;
+        window.maxscroll = 0.0f;
 
         TextureProperties props;
         props.format = IME_RGBA;
@@ -593,6 +623,7 @@ namespace IME::UI {
                     for(uint32 i = 0; i < pd->containers.getCount(); i++) {
                         if(pd->containers[i].v1 == dockingspace) {
                             pd->containers[i].v1 = d->containers[0].v1;
+                            ((ElementParameters*)pd->containers[i].v1.data)->parent = parentdockingspace;
 
                             d->containers.clear();
                             destroyDockingSpace(dockingspace, uilayer);
@@ -613,6 +644,7 @@ namespace IME::UI {
                     ElementPtr parent = d->parameters.parent;
                     d->containers.destroy();
                     d->parameters.elementconstraints.destroy();
+
                     *d = *child;
                     d->parameters.parent = parent;
 
@@ -716,22 +748,25 @@ namespace IME::UI {
         Region windowregion = window->region;
 
         if(window->isdocked) {
-
-            if(window->region.width != parentinfo.availableregion.width || window->region.height != parentinfo.availableregion.height) {
-                Assets::resizeFrameBuffer((uint32)parentinfo.availableregion.width, (uint32)parentinfo.availableregion.height, window->framebuffer, *uilayer.platform);
-                if(window->parameters.onresize) {
-                    window->parameters.onresize(ptr, {parentinfo.availableregion.width, parentinfo.availableregion.height}, (Layer*)(&uilayer), *uilayer.platform);
-                }
-            }
             window->region = parentinfo.availableregion;
             windowregion = window->region;
         }
+        if(window->flags & NO_TOPBAR) {
+            window->topbarregion = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+        } else {
+            window->topbarregion = { 0.0f, windowregion.height, 40.0f, windowregion.width, topbarheight};
+        }
 
-        //calculate available contentregion
-        window->topbarregion = { 0.0f, windowregion.height, 0.0f, windowregion.width, topbarheight};
-        window->parameters.borderregion = {0.0f, windowregion.height - topbarheight, 0.0f, windowregion.width, windowregion.height - topbarheight};
+        window->parameters.borderregion = {0.0f, windowregion.height - window->topbarregion.height, 0.0f, windowregion.width, windowregion.height - window->topbarregion.height};
         window->parameters.contentregion = subtractBordersFromRegion(window->parameters.borderregion, {1.0f, 1.0f, 0.0f, 1.0f});
         window->parameters.contentregion.z += 0.2f;
+
+        if(window->region.width != window->framebuffer->width || window->region.height != window->framebuffer->height) {
+            Assets::resizeFrameBuffer((uint32)window->region.width, (uint32)window->region.height, window->framebuffer, *uilayer.platform);
+            if(window->parameters.onresize) {
+                window->parameters.onresize(ptr, {window->parameters.borderregion.width, window->parameters.borderregion.height}, (Layer*)(&uilayer), *uilayer.platform);
+            }
+        }
 
         parentinfo.availableregion = window->parameters.contentregion;
         parentinfo.availableregion.height = INFINITY;
@@ -741,10 +776,12 @@ namespace IME::UI {
         ElementConstraints constraints = determineElementConstraints(parentinfo, window->parameters.elementconstraints);
 
         parentinfo.availableregion = calcvailableContentRegion(constraints);
+        parentinfo.availableregion.y += window->scroll;
 
         parentinfo.availablefloatingregion = parentinfo.availableregion;
-        
+
         for (ElementPtr ptr : window->children) {
+
             Region childregion = calculateElementParameters(ptr, parentinfo, uilayer);
 
             if(toVec2(childregion.topleft) == toVec2(parentinfo.availablefloatingregion.topleft)) {
@@ -775,9 +812,9 @@ namespace IME::UI {
                     parentinfo.availablefloatingregion = parentinfo.availableregion;
                 }
             }
+        }
 
-            
-        };
+        window->maxscroll = (real32)floorReal32(maxReal32(window->parameters.contentregion.y - window->parameters.contentregion.height - parentinfo.availableregion.y + window->scroll, 0.0f));
 
         calcRegions(&window->parameters, constraints);
 
@@ -850,6 +887,7 @@ namespace IME::UI {
 
 
         //push the font to the layer
+        paragraph->textcolor = constraints.textcolor;
         paragraph->textsize = constraints.textsize;
         real32 scalefactor = paragraph->textsize / uilayer.basefont->pixelheight;
         vec2f size = calcTextSizeFromFont(paragraph->text.getCstring(), paragraph->parameters.contentregion.width, 0.0f, scalefactor, *uilayer.basefont);
@@ -1124,14 +1162,22 @@ namespace IME::UI {
             quadrq.init(0);
             Arraylist<Rendering::SimpleQuadCommand> quadrqt;            
             quadrqt.init(0);
-            pushRegionToRQ(window.topbarregion, topbarcolor, layer.composingshader, &quadrq);
             pushRegionToRQ(window.parameters.borderregion, topbarcolor, layer.composingshader, &quadrq);
             pushRegionToRQ(window.parameters.contentregion, window.parameters.backgroundcolor, layer.composingshader, &quadrq);
+
+            if(window.scroll > 0.0f) {
+                pushRegionToRQ({0.0f, 0.0f, 10.0f, 100.0f, 100.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, layer.composingshader, &quadrq);
+            }
+
+            if(!(window.flags & NO_TOPBAR)) {
+                pushRegionToRQ(window.topbarregion, topbarcolor, layer.composingshader, &quadrq);
+            }
+
             real32 scalefactor = 12.0f / layer.basefont->pixelheight;
             real32 yoffset = (topbarheight - 12.0f) / 2.0f;
             pushTextFromFontToRQ(
                     window.title.getCstring(), 
-                    window.topbarregion.topleft + vec3f{yoffset, -yoffset, 1.0f}, 
+                    window.topbarregion.topleft + vec3f{yoffset, -yoffset, 2.0f}, 
                     window.topbarregion.width, 0.0f, 
                     vec4f{1.0f, 1.0f, 1.0f, 1.0f}, scalefactor, 
                     *layer.basefont, 
@@ -1216,6 +1262,70 @@ namespace IME::UI {
         return {e1.v1 || e2.v1, e1.v2 || e2.v2};
     }
 
+    eventresult elementOnMouseScrollEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform);
+
+    eventresult windowOnMouseScrollEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform) {
+        Window* w = (Window*)element.data;
+
+        if(isPointInRegion(relativemousepos, w->region)) {
+
+            vec2f newrelativemousepos = relativemousepos - (toVec2(w->region.topleft) - vec2f{0.0f, w->region.height}); 
+            
+            eventresult result = {false, false};
+            for(ElementPtr child : w->children) {
+                result = result | elementOnMouseScrollEvent(child, e, newrelativemousepos, layer, platform);
+                if(result.v1) {
+                    if(result.v2) {
+                        calculateWindowParameters(element, w->parameters.parentcache, *layer);
+                    }
+                    return {true, false};
+                }
+            }
+
+            real32 oldscroll = w->scroll;
+            real32 scrollspeed = 20.0f;
+            real32 scroll = e.param1 == 1 ? scrollspeed : -scrollspeed;
+
+            w->scroll += scroll;
+            if(w->scroll < 0.0f) {
+                w->scroll = 0.0f;
+            }
+            if(w->scroll > w->maxscroll) {
+                w->scroll = w->maxscroll;
+            }
+
+            if(w->scroll != oldscroll || result.v2) {
+                calculateWindowParameters(element, w->parameters.parentcache, *layer);
+            }
+            return {true, false};
+        }
+        return {false, false};
+    }
+
+    eventresult dockingSpaceOnMouseScrollEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform) {
+        DockingSpace* d = (DockingSpace*)element.data;
+
+        if(isPointInRegion(relativemousepos, d->parameters.contentregion)) {
+            eventresult result = {false, false};
+            for(auto [child, size] : d->containers) {
+                result = result | elementOnMouseScrollEvent(child, e, relativemousepos, layer, platform);
+                if(result.v1) {
+                    return result;
+                }
+            }
+            return result;
+        }
+        return {false, false};
+    }
+
+    eventresult elementOnMouseScrollEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform) {
+        switch (element.type) {
+            case WINDOW: return windowOnMouseScrollEvent(element, e, relativemousepos, layer, platform);
+            case DOCKINGSPACE: return dockingSpaceOnMouseScrollEvent(element, e, relativemousepos, layer, platform);
+        }
+        return {false, false};
+    }
+
     eventresult elementOnMouseMoveEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform);
 
     eventresult paragraphOnMouseMoveEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform) {
@@ -1287,7 +1397,7 @@ namespace IME::UI {
 
                     real32 y = d->parameters.contentregion.y - relativemousepos.y - offset;
 
-                    if(y < 0.0f || y > totalwidth) {
+                    if(y < 0.0f + 40.0f || y > totalwidth - 40.0f) {
                         return {true, false};
                     }
 
@@ -1414,24 +1524,27 @@ namespace IME::UI {
                 Region absolutetopbarregion = window->topbarregion;
                 absolutetopbarregion.topleft = window->region.topleft;
                 //window is grabbed if the topbar is clicked
-                if(isPointInRegion(mousepos, absolutetopbarregion)) {
-                    layer->elementgrabbing = true;
-                    layer->editedelement = element;
-                    layer->clickingoffset = toVec2(window->region.topleft) - mousepos;
-                    if(window->isdocked) {
-                        window->isdocked = false;
-                        DockingSpace* d = (DockingSpace*)window->parameters.parent.data;
-                        ElementPtr recalc = UI::undockWindow(element, layer);
-                        if(recalc.type == WINDOW) {
-                            calculateWindowParameters(recalc, ((Window*)recalc.data)->parameters.parentcache, *layer);
+
+                if(!(window->flags & NO_TOPBAR)) {
+                    if(isPointInRegion(mousepos, absolutetopbarregion)) {
+                        layer->elementgrabbing = true;
+                        layer->editedelement = element;
+                        layer->clickingoffset = toVec2(window->region.topleft) - mousepos;
+                        if(window->isdocked) {
+                            window->isdocked = false;
+                            DockingSpace* d = (DockingSpace*)window->parameters.parent.data;
+                            ElementPtr recalc = UI::undockWindow(element, layer);
+                            if(recalc.type == WINDOW) {
+                                calculateWindowParameters(recalc, ((Window*)recalc.data)->parameters.parentcache, *layer);
+                            }
+                            if(recalc.type == DOCKINGSPACE) {
+                                calculateDockingSpaceParameters(recalc, ((DockingSpace*)recalc.data)->parameters.parentcache, *layer);
+                            }
+                            layer->windoworder.remove(element);
+                            layer->windoworder.push_back(element);
                         }
-                        if(recalc.type == DOCKINGSPACE) {
-                            calculateDockingSpaceParameters(recalc, ((DockingSpace*)recalc.data)->parameters.parentcache, *layer);
-                        }
-                        layer->windoworder.remove(element);
-                        layer->windoworder.push_back(element);
+                        return {true, false};
                     }
-                    return {true, false};
                 }
                 
                 vec2f relativemousepos = mousepos - (toVec2(window->region.topleft) - vec2f{0.0f, window->region.height}); 
@@ -1451,6 +1564,10 @@ namespace IME::UI {
                 }
             
                 ishandled = true;
+            }
+
+            if(window->flags & NO_RESIZING) {
+                return {ishandled, recalculate};
             }
             
             //check if start with window resizing
@@ -1628,6 +1745,18 @@ namespace IME::UI {
 
     bool32 
     propagateEventToLayer(Event e, Layer* layer, const PlatformInterface& platform) {
+
+        if(e.type == EventType::IME_MOUSE_SCROLLED) {
+            vec2f mousepos = toVec2f(platform.mouse.relativemousepos);
+            mousepos.y = ((real32)platform.window.height - mousepos.y);
+
+            eventresult result = {false, false};
+            for (ElementPtr window : layer->windoworder) {
+                if(!((Window*)window.data)->isdocked) {
+                    windowOnMouseScrollEvent(window, e, mousepos, layer, platform);
+                }
+            }
+        }
         
         if(e.type == EventType::IME_MOUSE_BUTTON_PRESSED) {
 
@@ -1754,22 +1883,8 @@ namespace IME::UI {
             window->region.topleft = {0.0f, (real32)e.param2, -1.0f};
             window->region.size = {(real32)e.param1, (real32)e.param2};
 
-            Assets::resizeFrameBuffer((uint32)window->region.width, (uint32)window->region.height, window->framebuffer, platform);
-
-            //calculateElementsForWindow(layer->editedelement, *layer);
             ElementConstraints parent = window->parameters.parentcache;
             calculateWindowParameters(layer->basewindow, parent, *layer);
-
-            bool32 recalculate = false;
-
-            if(window->parameters.onresize) {
-                auto [ishandled, recalculate_] = window->parameters.onresize(layer->basewindow, {window->parameters.contentregion.width, window->parameters.contentregion.height}, layer, platform);
-                recalculate |= recalculate_;
-            }
-
-            if(recalculate) {
-                calculateWindowParameters(layer->basewindow, parent, *layer);
-            }
         }
 
         if(e.type == IME_MOUSE_BUTTON_RELEASED) {
@@ -1846,18 +1961,6 @@ namespace IME::UI {
                 if(layer->elementresizing) {
                     window->region.width = posx - window->region.x > 30.0f ?  posx - window->region.x : 30.0f;
                     window->region.height = window->region.y - posy > 30.0f ? window->region.y - posy : 30.0f;
-
-                    Region windowregion = window->region;
-                    window->topbarregion = { 0.0f, windowregion.height, 0.0f, windowregion.width, topbarheight};
-                    window->parameters.borderregion = {0.0f, windowregion.height - topbarheight, 0.0f, windowregion.width, windowregion.height - topbarheight};
-                    window->parameters.contentregion = subtractBordersFromRegion(window->parameters.borderregion, {1.0f, 1.0f, 0.0f, 1.0f});
-                    window->parameters.contentregion.z += 0.2f;
-
-                    Assets::resizeFrameBuffer((uint32)window->region.width, (uint32)window->region.height, window->framebuffer, platform);
-
-                    if(window->parameters.onresize) {
-                        window->parameters.onresize(layer->editedelement, vec2f{window->region.width, window->region.height}, layer, platform);
-                    }
 
                     calculateWindowParameters(layer->editedelement, window->parameters.parentcache, *layer);
 

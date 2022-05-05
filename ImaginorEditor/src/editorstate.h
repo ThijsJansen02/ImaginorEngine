@@ -23,11 +23,14 @@ namespace IME {
         Scene::SceneData scene;
         Scene::Entity cameraentity;
 
+        Assets::Mesh* examplemesh;
+
         Assets::FrameBuffer* sceneframebuffer;
         Assets::Texture* colorbuffer;
 
         UI::Layer uilayer;
 
+        gl_id meshshader;
         gl_id quadshader;
         gl_id fontshader;
         Assets::Font* textfont;

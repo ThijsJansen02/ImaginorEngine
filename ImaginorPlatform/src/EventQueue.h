@@ -26,8 +26,10 @@ namespace IME {
 
     struct EventQueue {
 
-        Data::LocalCircularArrayList<Event, 24> output;
-        Data::LocalCircularArrayList<Event, 24> input;
+        bool32 open = false;
+
+        Data::LocalCircularArrayList<Event, 64> output;
+        Data::LocalCircularArrayList<Event, 64> input;
 
         sizeptr poppedevents;
         sizeptr availableevents;

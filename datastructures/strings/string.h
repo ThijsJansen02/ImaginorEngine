@@ -17,6 +17,13 @@ namespace IME::Data {
             return result;
         }
 
+        static String createWrapper(char* str) {
+            String result;
+            result.m_Data = str;
+            result.m_Size = 0;
+            return result;
+        }
+
         void set(const char* string) {
             if(m_Data) {
                 clear();

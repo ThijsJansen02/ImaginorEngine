@@ -7,8 +7,11 @@ namespace IME::Rendering {
     typedef Data::String<Memory::alloc, Memory::dealloc> RenderString;
 
     RenderSet 
-    initRenderSet() {
+    initRenderSet(sizeptr buffersize, Assets::Library* lib, const PlatformInterface& platform) {
         RenderSet result;
+        result.buffer = Assets::createUnformBuffer(buffersize, nullptr, IME_DYNAMIC_DRAW, platform, "renderset_transformsbuffer", lib);
+        platform.gfx.bindubo(0, 0, 0, 0);
+        
         result.renderqueues.init(0);
         return result;
     }
@@ -270,6 +273,69 @@ namespace IME::Rendering {
                 platform.gfx.enable(IME_DEPTH_TEST);
             } else {
                 platform.gfx.disable(IME_DEPTH_TEST);
+            }
+
+            if(rq.commandtype == MESH_OBJECT) {
+
+                MeshObjectCommand* commands = (MeshObjectCommand*)rq.data1;
+
+                sizeptr transformssize = sizeof(mat4) * rq.count1;
+                mat4* transforms = (mat4*)Memory::alloc(transformssize);
+
+                for(sizeptr i = 0; i < rq.count1; i++) {
+                    transforms[i] = commands[i].transform;
+                }
+
+
+                gl_id shader = commands[0].shader;
+                platform.gfx.bindshader(shader);
+                platform.gfx.shader_settexturebinding("offset", 0);
+
+                for(uint32 i = 0; i < rq.uniformbuffers.getCapacity(); i++) {
+                    if(rq.uniformbuffers[i] != 0) {
+                        platform.gfx.bindubo(rq.uniformbuffers[i], rq.uniformbufferbindingpoints[i], 0, 0);
+                    }
+                }
+
+                platform.gfx.bindubo(renderset.buffer->id, 0, 0, 0);
+                platform.gfx.ubobuffersubdata((byte*)transforms, transformssize, 0);
+
+                gl_id rbo = commands[0].rbo;
+                platform.gfx.rbo_bind(rbo);
+
+                gl_id texture = commands[0].texture;
+                 platform.gfx.texture_bind(texture, 0);
+
+                int32 offset = 0;
+                for(sizeptr i = 0; i < rq.count1; i++) {
+                    
+                    MeshObjectCommand command = commands[i];
+
+                    if(command.shader != shader) {
+                        shader = command.shader;
+                        platform.gfx.bindshader(command.shader);
+                    }
+
+                    platform.gfx.shader_settexturebinding("offset", offset);
+
+                    if(command.rbo != rbo) {
+                        rbo = command.rbo;
+                        platform.gfx.rbo_bind(command.rbo);
+                    }
+
+                    if(command.texture != texture) {
+                        texture = command.texture;
+                        platform.gfx.texture_bind(command.texture, 0);
+                    }
+
+                    platform.gfx.drawarray(IME_TRIANGLES, 36);
+
+                    offset++;
+                }
+
+                if(rq.dealloc) {
+                    Memory::dealloc(rq.count1 * sizeof(MeshObjectCommand), rq.data1);
+                }
             }
 
             //drawing the simple quads

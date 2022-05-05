@@ -65,6 +65,7 @@ namespace IME::UI {
         WIDTH,
         HEIGHT,
         TEXT_HEIGHT,
+        TEXT_COLOR,
         BACKGROUND_COLOR,
         BORDER_COLOR,
         PADDING,
@@ -155,6 +156,12 @@ namespace IME::UI {
         bool32 hovered;
     };
 
+#define NO_TOPBAR 1 << 0
+#define NO_RESIZING 1 << 1
+#define NO_DRAGGING 1 << 2
+#define SCROLL_BAR 1 << 3
+
+
     struct Window {
         ElementParameters parameters;
 
@@ -163,6 +170,11 @@ namespace IME::UI {
 
         String title;    
         bool32 hovered;
+
+        uint32 flags;
+
+        real32 maxscroll;
+        real32 scroll;
 
         Arraylist<ElementPtr> children;
 
@@ -243,7 +255,7 @@ namespace IME::UI {
     };
 
 
-    ElementPtr addWindowToLayer(Region windowregion, gl_id shader, const char* title, const PlatformInterface& platform, Layer* layer);
+    ElementPtr addWindowToLayer(Region windowregion, gl_id shader, const char* title, const PlatformInterface& platform, Layer* layer, uint32 flags);
     ElementPtr addParagraph(const char* text, ElementPtr parent, Layer* uilayer);
     ElementPtr addInputField(const char* initialtext, ElementPtr parent, Layer* uilayer);
     ElementPtr addImage(Assets::Texture* image, ElementPtr parent, Layer* uilayer);
@@ -252,7 +264,7 @@ namespace IME::UI {
     void dockWindow(ElementPtr window, ElementPtr dockingspace, bool horizontal, uint32 index, UI::Layer* uilayer);
     ElementPtr undockWindow(ElementPtr window, UI::Layer* uilayer); 
 
-    void destroyElement(ElementPtr el);
+    void destroyElement(ElementPtr el, Layer* layer);
 
     bool32 addOnClickEventHandler(ElementPtr element, on_mouse_click* handler, Layer* uilayer);
     bool32 addOnResizeEventHandler(ElementPtr element, on_resize* handler, Layer* uilayer);

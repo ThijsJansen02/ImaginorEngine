@@ -85,6 +85,59 @@ namespace IME::Editor
         return {false, true};
     }
 
+    struct SceneUniformBuffer  {
+        mat4 viewprojection;
+        mat4 transform;
+    };
+
+    float vertices[] = {
+        // positions          // normals           // texture coords
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
+        0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
+        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
+        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
+
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
+        0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
+
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+
+        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+        0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+        0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
+        0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
+        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
+        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
+
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
+        0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
+    };
+
+    LayoutChunk chunks[] = { {IME_FLOAT3, 0, false}, {IME_FLOAT3, 1, false}, {IME_FLOAT2, 2, false}};
+    global_var Assets::MeshLayout cubebufferlayout = { chunks, sizeof(chunks) / sizeof(LayoutChunk) };
+
     extern "C" IME_APPLICATION_INIT(applicationInit) { //bool32 applicationInit(ApplicationMemory memory, RenderCommands rendercommands)
 
         EditorState* stateptr = (EditorState*)platform.appmemory.persistentstorage;
@@ -93,16 +146,26 @@ namespace IME::Editor
         Assets::Library* lib = &stateptr->assetlibrary;
 
         stateptr->testimage = Assets::loadColorTexture8("hat32x32.png", platform, 4, "hat_D", lib);
-        stateptr->renderset = Rendering::initRenderSet();
 
         Renderer2D::setup(&stateptr->batchdata, 10000, platform);
         Renderer2D::setBatchRendererData(&stateptr->batchdata);
 
+        stateptr->renderset = Rendering::initRenderSet(IME_MEGABYTE(16), lib, platform);
+
         stateptr->fontshader = Renderer2D::loadBatchShader("batchvertexshader.glsl", "textfragment.glsl", platform);
     	stateptr->quadshader = Renderer2D::loadBatchShader("batchvertexshader.glsl", "batchfragmentshader.glsl", platform);
 
+        Assets::Shader* shader = Assets::loadShader("vertex.glsl", "fragment.glsl", platform, "meshshader", lib);
+        platform.gfx.bindshader(shader->shaderid);
+        platform.gfx.setuniformbinding("Scene", 1);
+        platform.gfx.setuniformbinding("Transforms", 0);
+
+        Assets::loadColorTexture8("container.png", platform, 4, "container", lib);
+
         stateptr->textfont = Assets::loadFont("consolas/CONSOLA.ttf", platform, 40, 512, 512, stateptr->fontshader, "consolas_reg", lib);
         
+        stateptr->examplemesh = Assets::createMesh((byte*)vertices, sizeof(vertices), nullptr, 0, cubebufferlayout, platform, "cube", lib);
+
         //userinterface setup
         stateptr->uilayer = UI::createLayer(stateptr->quadshader, &platform, stateptr->textfont, lib);
         stateptr->uilayer.userpointer = stateptr;
@@ -110,7 +173,7 @@ namespace IME::Editor
         UI::Layer* uilayer = &stateptr->uilayer;
 
         char buffer[64];
-        sprintf_s(buffer, 64, "%.0fpx", UI::getContentRegion(uilayer->basewindow).height);
+        sprintf_s(buffer, 64, "%.0fpx", (real32)platform.window.height);
         UI::addConstraint(uilayer->basewindow, UI::HEIGHT, buffer);
         UI::addConstraint(uilayer->basewindow, UI::BACKGROUND_COLOR, "1.0, 0.0, 0.0, 1.0");
         UI::addOnResizeEventHandler(uilayer->basewindow, basewindowresize, uilayer);
@@ -125,7 +188,7 @@ namespace IME::Editor
         UI::addConstraint(ds, UI::WIDTH, "100%");
         UI::addConstraint(ds, UI::BACKGROUND_COLOR, "0.3, 0.3, 0.3, 1.0");
         
-        UI::ElementPtr renderwindow = UI::addWindowToLayer({300.0f, 1000.0f, 0.0f, 1200.0f, 900.0f}, stateptr->quadshader, "main window", platform, &stateptr->uilayer);
+        UI::ElementPtr renderwindow = UI::addWindowToLayer({300.0f, 1000.0f, 0.0f, 1200.0f, 900.0f}, stateptr->quadshader, "main window", platform, &stateptr->uilayer, UI::NONE);
         UI::addConstraint(renderwindow, UI::BORDER, "1.0px, 1.0px, 1.0px, 1.0px");
         UI::addOnResizeEventHandler(renderwindow, framebufferupdate, &stateptr->uilayer);
         UI::Region windowcontentregion = UI::getContentRegion(renderwindow);
@@ -140,7 +203,7 @@ namespace IME::Editor
         
         UI::dockWindow(renderwindow, ds, false, 0, uilayer);
 
-        Scene::initScene(&stateptr->scene);
+        Scene::initScene(&stateptr->scene, lib, platform);
         Scene::SceneData* scene = &stateptr->scene;
 
         Scene::SpriteRendererComponent comp;
@@ -149,18 +212,21 @@ namespace IME::Editor
         comp.texture = stateptr->testimage;
         comp.textureid = comp.texture->id;
 
-        Scene::Entity ent = Scene::addNewEntity("first entity", &stateptr->scene);
-        Scene::addComponentToEntity(ent, comp, &stateptr->scene);
+        Scene::MeshRenderComponent meshcomp;
+        meshcomp.mesh = &lib->meshes.get(Assets::String::createWrapper("cube"))->v;
+        meshcomp.rbo_id = meshcomp.mesh->renderbuffer;
+        meshcomp.shader_id = shader->shaderid;
+        meshcomp.texture_id = lib->textures.get(Assets::String::createWrapper("container"))->v.id;
+
+        Scene::Entity ent = Scene::addNewEntity("first entity", scene);
+        Scene::addComponentToEntity(ent, meshcomp, scene);
 
         Scene::Entity ent2 = Scene::addNewEntity("second entity", scene);
-
         mat4* trans = &Scene::getComponent<Scene::TransformComponent>(ent2, scene)->transform;
-        *trans = translationMat4(vec3f{0.0f, 0.0f, 1.0f});
+        *trans = translationMat4(vec3f{0.0f, 0.0f, 5.0f});
+        Scene::addComponentToEntity(ent2, meshcomp, scene);
 
-        comp.texture = nullptr;
-        comp.textureid = 0;
-        comp.color = {1.0f, 0.0f, 0.0f, 1.0f};
-        Scene::addComponentToEntity(ent2, comp, scene);
+
 
         Scene::Entity camera = Scene::addNewEntity("camera", &stateptr->scene);
         Scene::CameraComponent cameracomponent;
@@ -180,12 +246,14 @@ namespace IME::Editor
         script.init(script.data, scene, camera);
         Scene::addComponentToEntity(camera, script, scene);
 
+        /*
         UI::ElementPtr examplewindow = UI::addWindowToLayer({100.0f, 800.0f, 0.0f, 300.0f, 300.0f}, 0, "example window", platform, uilayer);
         UI::addConstraint(examplewindow, UI::BACKGROUND_COLOR, "0.3, 0.3, 0.3, 1.0");
         UI::addConstraint(examplewindow, UI::BORDER, "1.0px, 1.0px, 1.0px, 1.0px");
         UI::ElementPtr examplewindow2 = UI::addWindowToLayer({400.0f, 800.0f, 0.0f, 300.0f, 300.0f}, 0, "example window 2", platform, uilayer);
         UI::addConstraint(examplewindow2, UI::BACKGROUND_COLOR, "0.3, 0.3, 0.3, 1.0");
         UI::addConstraint(examplewindow2, UI::BORDER, "1.0px, 1.0px, 1.0px, 1.0px");
+        */
 
         UI::ElementPtr scenewindow = loadSceneView(stateptr, {0.0f, 1000.0f, 0.0f, 300.0f, 400.0f}, platform);
         UI::dockWindow(scenewindow, ds, false, 0, uilayer);
@@ -213,16 +281,18 @@ namespace IME::Editor
 
         Scene::updateScripts(platform, scene);
 
+        platform.gfx.disable(IME_DEPTH_TEST);
+
         Scene::CameraComponent* camera = Scene::getComponent<Scene::CameraComponent>(stateptr->cameraentity, scene);
         Scene::TransformComponent* cameratransform = Scene::getComponent<Scene::TransformComponent>(stateptr->cameraentity, scene);
 
-        mat4 textprojection = OrthographicMat4(0.0f, platform.window.width, 0.0f, platform.window.height, -100.0f, 70.0f);
+        mat4 textprojection = OrthographicMat4(0.0f, platform.window.width, 0.0f, platform.window.height, -100.0f, 100.0f);
         mat4 sceneprojection = perspectiveMat4(70.0f, 0.1f, 100.0f, (real32)stateptr->colorbuffer->props.width / (real32)stateptr->colorbuffer->props.height);
         mat4 view = inverseOfOrthagonalMat4(cameratransform->transform);
         camera->projection = sceneprojection;
 
         stateptr->renderset.renderqueues.clear();
-        Scene::pushSceneToRenderSet(&stateptr->renderset, &stateptr->scene, view, sceneprojection, stateptr->sceneframebuffer->id, {(uint32)stateptr->colorbuffer->props.width, (uint32)stateptr->colorbuffer->props.height});
+        Scene::pushSceneToRenderSet(&stateptr->renderset, &stateptr->scene, view, sceneprojection, stateptr->sceneframebuffer->id, {(uint32)stateptr->colorbuffer->props.width, (uint32)stateptr->colorbuffer->props.height}, platform);
 
         //pushing the ui elements to the renderset and flushing
         UI::pushLayerToRenderSet(stateptr->uilayer, &stateptr->renderset, textprojection, platform);

@@ -11,10 +11,15 @@ namespace IME {
 
         uilayer->userpointer = (void*)editor;
 
-        UI::ElementPtr window = UI::addWindowToLayer(scenewindow, 0, "scene view", platform, uilayer);
+        UI::ElementPtr window = UI::addWindowToLayer(scenewindow, 0, "scene view", platform, uilayer, UI::NONE);
         UI::addConstraint(window, UI::BACKGROUND_COLOR, "0.3, 0.3, 0.3, 1.0");
         UI::addConstraint(window, UI::BORDER, "1.0px, 1.0px, 1.0px, 1.0px");
         UI::addTag(window, "sceneview", uilayer);
+
+        auto el = UI::addParagraph("sample text", window, uilayer);
+        UI::addConstraint(el, UI::HEIGHT, "200px");
+        UI::addConstraint(el, UI::WIDTH, "100%");
+        UI::addConstraint(el, UI::BACKGROUND_COLOR, "1.0, 0.0, 0.0, 1.0");
 
         Scene::SceneData* scene = &editor->scene;
 

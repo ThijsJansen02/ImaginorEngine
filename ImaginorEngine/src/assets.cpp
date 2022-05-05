@@ -5,6 +5,16 @@
 
 namespace IME::Assets {
 
+     void initLibrary(Library* lib) {
+        lib->fonts.init();
+        lib->textures.init();
+        lib->framebuffers.init();
+        lib->renderbuffers.init();
+        lib->uniformbuffers.init();
+        lib->meshes.init();
+        lib->shaders.init();
+    }
+
     inline void 
     pushDebugMessage(const char* str, uint32 severity, const PlatformInterface& interface) {
         Event e;
@@ -16,6 +26,57 @@ namespace IME::Assets {
         interface.events.push(e);
     }
 
+    Shader* loadShader(const char* vertexshaderpath, const char* fragmentshaderpath, const PlatformInterface& platform, const char* name, Library* library) {
+
+        FileBuffer fragmentsrc = platform.io.debug_readfile(fragmentshaderpath, nullptr);
+        FileBuffer vertexsrc = platform.io.debug_readfile(vertexshaderpath, nullptr);
+
+
+        gl_id shader;
+        shader = platform.gfx.createshader();
+        platform.gfx.shaderaddprogram(IME_VERTEX, (char*)vertexsrc.data);
+        platform.gfx.shaderaddprogram(IME_FRAGMENT, (char*)fragmentsrc.data);
+        platform.gfx.shader_compile();
+        platform.gfx.bindshader(shader);
+
+        platform.io.debug_releasefilememory(&fragmentsrc);
+        platform.io.debug_releasefilememory(&vertexsrc);
+
+        Shader result;
+        result.shaderid = shader;
+        result.name.set(name);
+        result.fragsrcdirectory.set(fragmentshaderpath);
+        result.vertsrcdirectory.set(vertexshaderpath);
+
+        return &library->shaders.add(String::create(name), result)->v;
+    }
+
+    Mesh* createMesh(byte* vertexdata, sizeptr vertexdatasize, uint32* indexdata, sizeptr indexcount, MeshLayout meshlayout, const PlatformInterface& platform, const char* name, Library* library) {
+
+        Mesh result;
+        result.renderbuffer = platform.gfx.rbo_create();
+
+        result.layout.data = (LayoutChunk*)Memory::alloc(meshlayout.count * sizeof(LayoutChunk));
+        IME::copy((byte*)meshlayout.data, (byte*)result.layout.data, meshlayout.count * sizeof(LayoutChunk));
+        result.layout.count = meshlayout.count;
+
+        if(indexdata) {
+            result.indexbuffer = platform.gfx.rbo_setindexbuffer((byte*)indexdata, vertexdatasize, IME::IME_UINT32, IME::IME_STATIC_DRAW);
+        }
+        platform.gfx.rbo_addbuffer((byte*)vertexdata, vertexdatasize, meshlayout, IME::IME_STATIC_DRAW);
+        result.name.set(name);
+        result.srcdirectory.set("GENERATED");
+        return &library->meshes.add(String::create(name), result)->v;
+    }
+
+    UniformBuffer* createUnformBuffer(sizeptr size, byte* data, gsbufferusage usage, const PlatformInterface& platform, const char* name, Library* library) {
+        UniformBuffer result;
+        result.id = platform.gfx.createubo(data, size, usage);
+        result.name.set(name);
+        result.size = size;
+        return &library->uniformbuffers.add(String::create(name), result)->v;
+    }
+
     FrameBuffer* createFrameBuffer(uint32 width, uint32 height, const PlatformInterface& platform, const char* name, Library* library) {
 
         FrameBuffer result;
@@ -25,8 +86,13 @@ namespace IME::Assets {
         return &library->framebuffers.add(String::create(name), result)->v;
     }
 
+    void bufferSubData(UniformBuffer* buffer, byte* data, sizeptr offset, sizeptr size, const PlatformInterface& platform) {
+        platform.gfx.bindubo(buffer->id, 0, 0, 0);
+        platform.gfx.ubobuffersubdata(data, size, offset);
+    }
+
     void resizeFrameBuffer(uint32 width, uint32 height, FrameBuffer* fb, const PlatformInterface& platform) {
-        
+
         platform.gfx.fbo_bind(fb->id);
         platform.gfx.fbo_resize(width, height);
 
@@ -93,12 +159,6 @@ namespace IME::Assets {
         return ptr;
     }
 
-    void initLibrary(Library* lib) {
-        lib->fonts.init();
-        lib->textures.init();
-        lib->framebuffers.init();
-        lib->renderbuffers.init();
-    }
 
     Texture* loadColorTexture8(const char* filename, const PlatformInterface& platform, uint32 desiredchannels, const char* name, Library* library) {
 

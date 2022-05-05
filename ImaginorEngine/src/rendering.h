@@ -44,20 +44,32 @@ namespace IME::Rendering {
 
     };  
 
+    struct MeshObjectCommand {
+        gl_id rbo;
+        gl_id shader;
+        gl_id texture;
+        mat4 transform;
+    };
+
     enum RenderQueueTypes {
         SIMPLE_QUAD,
         COMPLEX_QUAD,
-        SIMPLE_TEXT
+        SIMPLE_TEXT,
+        MESH_OBJECT
     };
 
     typedef ArrayList<ComplexQuadCommand> ComplexQuadRQ;
     typedef ArrayList<SimpleQuadCommand> SimpleQuadRQ;
+    typedef ArrayList<MeshObjectCommand> MeshRQ;
 
     struct RenderQueue {
 
         bool32 updatescene;
         mat4 projection;
         mat4 view;
+
+        Data::Array<gl_id, 3> uniformbuffers;
+        Data::Array<uint32, 3> uniformbufferbindingpoints;
 
         RenderQueueTypes commandtype;
         gl_id rendertarget;
@@ -80,11 +92,13 @@ namespace IME::Rendering {
     };
 
     struct RenderSet {
+
         Data::ArrayList_<RenderQueue, Memory::alloc, Memory::dealloc> renderqueues;
+        Assets::UniformBuffer* buffer;
     };
 
     RenderSet 
-    initRenderSet();
+    initRenderSet(sizeptr buffersize, Assets::Library* lib, const PlatformInterface& platform);
     
     void 
     pushQuad(

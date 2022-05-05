@@ -101,6 +101,9 @@ namespace IME::OpenGL {
         glGetShaderInfoLog_ = (PFNGLGETSHADERINFOLOGPROC)wglGetProcAddress("glGetShaderInfoLog");
 
         glDebugMessageCallback_ = (PFNGLDEBUGMESSAGECALLBACKPROC)wglGetProcAddress("glDebugMessageCallback");
+
+        int32 offset;
+        glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &offset);
     }
 
     template<typename T>
@@ -233,6 +236,7 @@ namespace IME::OpenGL {
         clearPrimitiveSet(&glstate.vaos);
         VertexArrayObject nullvao;
         nullvao.id = 0;
+        nullvao.ibo = 0;
         addNewPrimitive(&glstate.vaos, nullvao);
 
         clearPrimitiveSet(&glstate.vbos);
@@ -253,6 +257,7 @@ namespace IME::OpenGL {
         clearPrimitiveSet(&glstate.ubos);
         UniformBufferObject nullubo;
         nullubo.id = 0;
+        nullubo.size = 0;
         addNewPrimitive(&glstate.ubos, nullubo);
 
         clearPrimitiveSet(&glstate.textures);
@@ -407,7 +412,7 @@ namespace IME::OpenGL {
         IME_DEBUG_ASSERT_BREAK(glstate.inited, "gl is not yet inited!")
 
         ShaderProgram* shader = &glstate.shaders.data[glstate.boundshader];
-        unsigned int uniformblockindex = glGetUniformBlockIndex_(shader->program, uniformname);
+        GLint uniformblockindex = glGetUniformBlockIndex_(shader->program, uniformname);
         glUniformBlockBinding_(shader->program, uniformblockindex, bindingpoint);
     }
 
@@ -415,7 +420,7 @@ namespace IME::OpenGL {
         IME_DEBUG_ASSERT_BREAK(glstate.inited, "gl is not yet inited!")
         
         ShaderProgram* shader = &glstate.shaders.data[glstate.boundshader];
-        GLuint location = glGetUniformLocation_(shader->program, uniformname);
+        GLint location = glGetUniformLocation_(shader->program, uniformname);
         glUniform1i_(location, bindingpoint); 
     }
 
@@ -512,6 +517,7 @@ namespace IME::OpenGL {
         glBindBuffer_(GL_UNIFORM_BUFFER, ubo.id);
         glBufferData_(GL_UNIFORM_BUFFER, size, data, getOpenGLBufferUsage(usage));
         glstate.boundubo = addNewPrimitive(&glstate.ubos, ubo);
+        glBindBuffer_(GL_UNIFORM_BUFFER, 0);
         return glstate.boundubo;
     }
 
@@ -520,23 +526,33 @@ namespace IME::OpenGL {
 
         glstate.boundubo = id;
         UniformBufferObject* ubo = &glstate.ubos.data[glstate.boundubo];
-        if(size == 0) {
-            glBindBufferBase_(GL_UNIFORM_BUFFER, bindingpoint, ubo->id);
-        } else {
+
+        if(size > 0) {
             glBindBufferRange_(GL_UNIFORM_BUFFER,  bindingpoint, ubo->id, offset, size);
+        } else {
+            glBindBufferBase_(GL_UNIFORM_BUFFER,  bindingpoint, ubo->id);
         }
     }
 
     extern "C" IME_GLAPI_UBO_BUFFER_DATA(ime_glapi_ubo_buffer_data) { //void ime_ubo_buffer_data(byte* data, sizeptr size, sizeptr offset, gsbufferusage usage)
         IME_DEBUG_ASSERT_BREAK(glstate.inited, "gl is not yet inited!")
         
-        glBufferData_(GL_UNIFORM_BUFFER, size, data, getOpenGLBufferUsage(usage));
+
+        UniformBufferObject* ubo = &glstate.ubos.data[glstate.boundubo];
+
+        glBindBuffer_(GL_UNIFORM_BUFFER, ubo->id);
+        glBufferData_(GL_UNIFORM_BUFFER, (GLsizeiptr)size, data, getOpenGLBufferUsage(usage));
+        glBindBuffer_(GL_UNIFORM_BUFFER, 0);
     }
 
     extern "C" IME_GLAPI_UBO_BUFFER_SUB_DATA(ime_glapi_ubo_buffer_sub_data) { //void ime_glapi_ubo_buffer_sub_data(byte* data, sizeptr size, sizeptr offset)
         IME_DEBUG_ASSERT_BREAK(glstate.inited, "gl is not yet inited!")
         
-        glBufferSubData_(GL_UNIFORM_BUFFER, offset, size, data);
+        UniformBufferObject* ubo = &glstate.ubos.data[glstate.boundubo];
+
+        glBindBuffer_(GL_UNIFORM_BUFFER, ubo->id);
+        glBufferSubData_(GL_UNIFORM_BUFFER, (GLintptr)offset, (GLsizeiptr)size, data);
+        glBindBuffer_(GL_UNIFORM_BUFFER, 0);
     }
 
     extern "C" IME_GLAPI_TEXTURE_CREATE(ime_glapi_texture_create) { //gl_id ime_glapi_texture_create(TextureProperties properties, byte* src, gstextureformat srcformat, gsdatatype srcdatatype)
@@ -825,7 +841,6 @@ openGLMessageCallback( GLenum source,
     case GL_DEBUG_SEVERITY_HIGH:
         event.param1 = IME::IME_ERROR;
         severitystr = "HIGH";
-    //IME_DEBUG_BREAK()
         break;
     case GL_DEBUG_SEVERITY_MEDIUM:
         event.param1 = IME::IME_WARN;
@@ -852,6 +867,7 @@ openGLMessageCallback( GLenum source,
         message
     );
 
+    OutputDebugString(buffer);
     event.param2 = (IME::uint64)buffer;
 
     user->events->output.push_back(IME::copyEvent(event));

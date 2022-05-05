@@ -42,6 +42,7 @@ namespace IME::Renderer2D {
         platform.gfx.shaderaddprogram(IME_FRAGMENT, (char*)fragmentsrc.data);
         platform.gfx.shader_compile();
         platform.gfx.bindshader(shader);
+        platform.gfx.setuniformbinding("Matrices", 0);
         setTextureBindings("textures[%d]", platform.gfx);
 
         platform.io.debug_releasefilememory(&fragmentsrc);
@@ -275,11 +276,12 @@ namespace IME::Renderer2D {
         batchrendererdata_->stats.drawcalls += 1;
         batchrendererdata_->stats.quadcount += batchrendererdata_->vertexoffset / 4;
 
+        batchrendererdata.rendercommands.bindubo(batchrendererdata.scenebuffer, 0, 0, 0);
+        batchrendererdata.rendercommands.ubobuffersubdata((byte*)&batchrendererdata.scene, sizeof(SceneData), 0);
+
         batchrendererdata.rendercommands.rbo_bind(batchrendererdata.renderbuffer);
         batchrendererdata.rendercommands.bindshader(batchrendererdata.shader);
 
-        batchrendererdata.rendercommands.bindubo(batchrendererdata.scenebuffer, 0, 0, 0);
-        batchrendererdata.rendercommands.ubobuffersubdata((byte*)&batchrendererdata.scene, sizeof(SceneData), 0);
 
         for(int32 i = 0; i < batchrendererdata.storedtextures; i++) {
             batchrendererdata.rendercommands.texture_bind(batchrendererdata.textures[i], i);

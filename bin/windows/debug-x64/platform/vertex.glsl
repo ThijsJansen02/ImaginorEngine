@@ -1,26 +1,24 @@
-#version 330 core
+#version 440 core
 layout (location = 0) in vec3 aPos;   // the position variable has attribute position 0
-layout (location = 1) in vec3 aColor; // the color variable has attribute position 1
+layout (location = 1) in vec3 aNormal;
 layout (location = 2) in vec2 aTexCoords;
-  
-out vec3 pColor; // output a color to the fragment shader
+
 out vec2 pTexCoords;
 
-layout (row_major, std140) uniform Matrices
+uniform int offset;
+
+layout (row_major, std140) uniform Scene 
 {
-    mat4 model;
-    mat4 view;
-    mat4 projection;
+    mat4 viewprojection;
 };
 
-layout (row_major, std140) uniform Colors
+layout (row_major, std140) uniform Transforms 
 {
-    vec3 color;
+    mat4 transform[128];
 };
 
 void main()
 {
-    gl_Position =  projection * model * vec4(aPos, 1.0);
-    pColor = color; // set ourColor to the input color we got from the vertex data
+    gl_Position =  viewprojection * transform[offset] * vec4(aPos, 1.0);
     pTexCoords = aTexCoords;
 }       

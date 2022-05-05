@@ -148,7 +148,7 @@ namespace IME::Data {
             --m_Count;
             IME_DEBUG_ASSERT_BREAK(m_Count >= 0, "array already empty!")
             T result = m_Data[0];
-            IME::copy(m_Data + 1, m_Data, count * sizeof(T))
+            IME::copy((byte*)(m_Data + 1), (byte*)m_Data, m_Count * sizeof(T));
             return result;
         }
 

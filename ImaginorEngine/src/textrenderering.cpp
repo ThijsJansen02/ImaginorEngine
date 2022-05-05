@@ -1,5 +1,6 @@
 #include "textrenderering.h"
 #include <stb/stb_image.h>
+#include <stb/stb_treutype.h>
 #include "rendering.h"
 #include "rendering/Renderer2D.h"
 
@@ -72,7 +73,7 @@ namespace IME {
                     stbtt_GetBakedQuad(font.cdata, font.props.width, font.props.height, *str_probe-32, &probe.x, &probe.y, &q,1);//1=opengl & d3d10+,0=d3d9
                     ++str_probe;
 
-                    while (*str_probe && *str_probe != ' ') {
+                    while (*str_probe && *str_probe != ' ' && *str_probe != '\n') {
                         if (*str >= 32 && *str < 128) {
                             
                             //keep track of what thte last 
@@ -147,7 +148,7 @@ namespace IME {
                     stbtt_GetBakedQuad(font.cdata, font.props.width, font.props.height, *str_probe-32, &probe.x, &probe.y, &q,1);//1=opengl & d3d10+,0=d3d9
                     ++str_probe;
 
-                    while (*str_probe && *str_probe != ' ') {
+                    while (*str_probe && *str_probe != ' ' && *str_probe != '\n') {
                         stbtt_aligned_quad q_probe;
                         stbtt_GetBakedQuad(font.cdata, font.props.width, font.props.height, *str_probe-32, &probe.x, &probe.y, &q_probe, 1);
 

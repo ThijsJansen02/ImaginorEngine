@@ -47,6 +47,14 @@ namespace IME::Scene {
         IME::script_on_event* onevent;
 
         void* data;
+    };
 
+    struct MeshRenderComponent {
+        COMPONENT()
+
+        Assets::Mesh* mesh;
+        gl_id rbo_id;
+        gl_id texture_id;
+        gl_id shader_id;
     };
 }

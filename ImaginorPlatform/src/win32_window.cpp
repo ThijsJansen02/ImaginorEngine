@@ -48,7 +48,6 @@ namespace IME {
             } break;
             case WM_SIZE:
             {
-                //sent out event
                 IME::Event event;
                 event.destinations = pState->partition;
                 event.source = IME_PLATFORM;

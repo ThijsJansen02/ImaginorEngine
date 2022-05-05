@@ -436,11 +436,18 @@ namespace IME {
 
     internal void 
     win32_dispatchEvent(Event event) {
+
         if(bool(event.destinations & IME_CONSOLE) == true) {
-            consoleevents.input.push_back(copyEvent(event));
+            if(consoleevents.open) {
+                if(consoleevents.input.getCount() < consoleevents.input.getCapacity() - 2) {
+                    consoleevents.input.push_back(copyEvent(event));
+                }
+            }
         }
         if(bool(event.destinations & IME_APP) == true) {
-            applicationevents.input.push_back(copyEvent(event));
+            if(applicationevents.input.getCount() < applicationevents.input.getCapacity() - 2) {
+                applicationevents.input.push_back(copyEvent(event));
+            }
         }
         if(bool(event.destinations & IME_PLATFORM) == true) {
             applicationevents.input.push_back(copyEvent(event));
@@ -486,7 +493,7 @@ extern "C" {
     _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
 }
 
-IME::uint64 zip(IME::uint32 v1, IME::uint32 v2) {
+inline IME::uint64 zip(IME::uint32 v1, IME::uint32 v2) {
     IME::uint64 result = (IME::uint64)v1;
     result = result << 32;
     result += v2;
@@ -494,7 +501,7 @@ IME::uint64 zip(IME::uint32 v1, IME::uint32 v2) {
 }
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
-{   
+{ 
     DWORD ThreadID;
     HANDLE threadhandle = CreateThread(
         0,
@@ -636,8 +643,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         platforminterface.controllers = controllers;
 
         IME::WindowData windowdata;
-        windowdata.height = applicationwindow.nativewindow.windowstate.width;
-        windowdata.width = applicationwindow.nativewindow.windowstate.height;
+        windowdata.height = applicationwindow.nativewindow.windowstate.height;
+        windowdata.width = applicationwindow.nativewindow.windowstate.width;
         platforminterface.window = windowdata;
     }
     
@@ -723,6 +730,20 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
                 pressedmousebuttons[e.param1].pressed = false;
 
                 IME::applicationevents.input.push_back(e);
+            }
+
+            if(msg.message == WM_MOUSEWHEEL) {
+
+                IME::int32 zDelta = (msg.wParam & (1 << 31)) >> 31;
+                IME::Event e;
+                e.destinations = IME::IME_APP;
+                e.source = IME::IME_PLATFORM;
+                e.param1 = *(IME::uint32*)&zDelta;
+                e.param2 = 0;
+                e.type = IME::IME_MOUSE_SCROLLED;
+
+                IME::applicationevents.input.push_back(e);
+
             }
 
             if(msg.message == WM_RBUTTONDOWN) {
