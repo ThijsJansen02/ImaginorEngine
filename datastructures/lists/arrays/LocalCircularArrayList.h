@@ -151,11 +151,13 @@ namespace IME::Data {
 		}
 
 		inline void push_back(const T& element) {
+			m_Count++;
 			*m_End = element;
 			m_End++;
 		}
 
 		inline void push_front(const T& element) {
+			m_Count++;
 			m_Begin--;
 			*m_Begin = element;
 		}
@@ -169,10 +171,12 @@ namespace IME::Data {
 		}
 
 		inline const ReferenceType pop_back() {
+			m_Count--;
 			return *(--m_End);
 		}
 
 		inline const ReferenceType pop_front() {
+			m_Count--;
 			return *(m_Begin++);
 		}
 
@@ -189,7 +193,8 @@ namespace IME::Data {
 		}
 
 		inline uint32_t getCount() {
-			return m_Begin.diff(m_End);
+			//return m_Begin.diff(m_End);
+			return m_Count;
 		}
 
 		inline uint32_t getSize() {
@@ -219,6 +224,7 @@ namespace IME::Data {
 		iterator m_Begin;
 		iterator m_End;
 
+		sizeptr m_Count;
 	};
 
 	template<typename T, int capacity>

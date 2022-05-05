@@ -43,7 +43,7 @@ namespace IME::Data {
         struct ComponentData {
 
             Comp component;
-            uint32 entityindex;
+            Entity entity;
             bool32 used;
         };
 
@@ -52,8 +52,8 @@ namespace IME::Data {
         ComponentMap map;
         ComponentStorage components[n_components];
 
-        template<typename Comp1, typename Comp2 >
-        void forEachPair(void(* func)(Comp1*, Comp2*, void* userptr), void* userptr) {
+        template<typename Comp1, typename Comp2>
+        void forEachPair(void(* func)(Comp1*, Comp2*, void*), void* userptr) {
 
             ComponentStorage* storage1 = &components[Comp1::comp_index()];
             ComponentStorage* storage2 = &components[Comp2::comp_index()];
@@ -64,7 +64,7 @@ namespace IME::Data {
             for(uint32 i = 0; i < storage1->count; i++) {
                 ComponentData<Comp1>* current1 = &data1[i];
                 if(current1->used) {
-                    uint32 component2index = map.getStorageLocation(current1->entityindex, Comp2::comp_index());
+                    uint32 component2index = map.getStorageLocation(current1->entity.index, Comp2::comp_index());
                     if(component2index == 0xFFFFFFFF) {continue;}
 
                     ComponentData<Comp2>* current2 = &data2[component2index];
@@ -74,8 +74,8 @@ namespace IME::Data {
             }
         }
 
-        template<typename Comp1, typename Comp2, void(* func)(Comp1*, Comp2*, void* userptr), void* userptr>
-        void forEachPair() {
+        template<typename Comp1, typename Comp2, void(* func)(Comp1*, Comp2*, void*)>
+        void forEachPair(void* userptr) {
 
             ComponentStorage* storage1 = &components[Comp1::comp_index()];
             ComponentStorage* storage2 = &components[Comp2::comp_index()];
@@ -86,7 +86,7 @@ namespace IME::Data {
             for(uint32 i = 0; i < storage1->count; i++) {
                 ComponentData<Comp1>* current1 = &data1[i];
                 if(current1->used) {
-                    uint32 component2index = map.getStorageLocation(current1->entityindex, Comp2::comp_index());
+                    uint32 component2index = map.getStorageLocation(current1->entity.index, Comp2::comp_index());
                     if(component2index == 0xFFFFFFFF) {continue;}
 
                     ComponentData<Comp2>* current2 = &data2[component2index];
@@ -100,8 +100,8 @@ namespace IME::Data {
         struct View {
             struct iterator {
                 iterator(ComponentData<Comp>* ptr) : m_Ptr(ptr) {}
-                Comp& operator*() {
-                    return m_Ptr->component;
+                ComponentData<Comp>& operator*() {
+                    return *m_Ptr;
                 }
 
                 bool32 operator==(iterator other) {
@@ -129,6 +129,7 @@ namespace IME::Data {
 
         void init() {
             memset(&map, 0xFFFFFFFF, sizeof(this->map));
+            memset(usedidentities, 0x00000000, sizeof(usedidentities));
         }
     	
         template<typename Comp>
@@ -143,6 +144,12 @@ namespace IME::Data {
         }
 
         template<typename Comp>
+        bool32 hasComponent(Entity entity) {
+            uint32 comp_index = Comp::comp_index();
+            return map.getStorageLocation(entity.index, comp_index) != 0xFFFFFFFF;
+        }
+
+        template<typename Comp>
         Comp& getComponent(Entity entity) {
             uint32 index = Comp::comp_index();
             ComponentStorage* storage = &this->components[index];
@@ -153,7 +160,9 @@ namespace IME::Data {
         template<typename Comp>
         void addComponent(Entity entity, const Comp& component) {
             uint32 index = component.comp_index();
-            ComponentStorage* storage = &this->components[Comp::comp_index()];
+            IME_DEBUG_ASSERT_BREAK(index < n_components, "this index is not supported!")
+
+            ComponentStorage* storage = &this->components[index];
 
             if(storage->count == storage->firstopenspot) {
                 storage->count++;
@@ -173,9 +182,25 @@ namespace IME::Data {
             ComponentData<Comp>* data = (ComponentData<Comp>*)storage->data;
             data[storage->firstopenspot] = ComponentData<Comp>{ component, entity.index, true };
             map.setStorageLocation(entity.index, Comp::comp_index(), storage->firstopenspot);
-            while((bool)data[++storage->firstopenspot].used == true) { }
+
+            while((bool)data[++storage->firstopenspot].used == true && storage->firstopenspot < storage->count) { }
         }
 
+        template<typename comp>
+        void removeComponent(Entity entity) {
+            IME_DEBUG_ASSERT_BREAK(index < n_components, "this index is not supported!")
+
+            uint32 index = comp.comp_index();
+            ComponentStorage* storage = &this->components[index];
+            ComponentData<comp>* data = (ComponentData<Comp>*)storage->data;
+
+            uint32 componentlocation = map.getStorageLocation(entity.index, index);
+            data[componentlocation].used = false;
+            if(componentlocation < storage->firstopenspot) {
+                storage->firstopenspot = componentlocation;
+            }
+        }   
+ 
 
     };
 }

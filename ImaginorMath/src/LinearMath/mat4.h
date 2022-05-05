@@ -1,15 +1,14 @@
 #pragma once
-#include <core.h>
-#include <intrinsics.h>
+#include "core.h"
 #include "vec4.h"
-#include "vec3.h"
+#include "mat3.h"
 
 namespace IME {
 
     struct mat4 {
         union {
-            vec4f rows[4];
-            real32 data[4 * 4] = {0.0f};
+            IME::vec4f rows[4];
+            IME::real32 data[4 * 4] = {0.0f};
         };
     };
 
@@ -32,17 +31,43 @@ namespace IME {
         return result;
     }
 
-    inline mat4 rotationMat4(vec3f angles) {
+    inline mat4 rowComposeMat4(const vec4f& v1, const vec4f& v2, const vec4f& v3, const vec4f& v4) {
+        mat4 result;
+        result.rows[0] = v1;
+        result.rows[1] = v2;
+        result.rows[2] = v3;
+        result.rows[3] = v4;
+        return result;
+
+    }
+
+    inline mat4 perspectiveMat4(real32 fov, real32 near, real32 far, real32 aspectratio) {
+
+        real32 fovr = toRadians(fov);
+        mat4 result = {0.0f};
+        result.rows[0].x = coTangent(fovr / 2.0f) / aspectratio;
+
+        result.rows[1].y = coTangent(fovr / 2);
+
+        result.rows[2].z = (near + far) / (near - far);
+        result.rows[2].w = (2 * near * far) / (near - far);
+
+        result.rows[3].z = -1.0f;
+
+        return result;
+    }
+
+    inline mat4 rotationMat4FromEulerAngles(vec3f angles) {
         mat4 result;
 
-        real32 cosa = cosine(angles.z);
-        real32 sina = sine(angles.z);
+        real32 cosa = cosReal32(angles.z);
+        real32 sina = sinReal32(angles.z);
 
-        real32 cosb = cosine(angles.y);
-        real32 sinb = sine(angles.y);
+        real32 cosb = cosReal32(angles.y);
+        real32 sinb = sinReal32(angles.y);
 
-        real32 cosg = cosine(angles.x);
-        real32 sing = sine(angles.x);
+        real32 cosg = cosReal32(angles.x);
+        real32 sing = sinReal32(angles.x);
 
         result.data[0 + 0 * 4] = cosa * cosb;
         result.data[0 + 1 * 4] = sina * cosb;
@@ -59,6 +84,35 @@ namespace IME {
         result.data[3 + 3 * 4] = 1.0f;
 
         return result;
+    }
+
+    inline
+    mat3 getInnerMat3(const mat4& input) {
+
+        mat3 result;
+        result.rows[0] = vec3f{input.rows[0].x, input.rows[0].y, input.rows[0].z};
+        result.rows[1] = vec3f{input.rows[1].x, input.rows[1].y, input.rows[1].z};
+        result.rows[2] = vec3f{input.rows[2].x, input.rows[2].y, input.rows[2].z};
+
+        return result;
+    }
+
+    inline vec4f toVec4_(const vec3f& v, real32 value = 0.0f) {
+        return {v.x, v.y, v.z, value};
+    }
+
+    inline 
+    mat4 inverseOfOrthagonalMat4(const mat4& mat) {
+        vec3f pos;
+
+        pos.x = -mat.rows[0].w;
+        pos.y = -mat.rows[1].w;
+        pos.z = -mat.rows[2].w;
+
+        mat3 innerT = transposeMat3(getInnerMat3(mat));
+        pos = innerT * pos;
+
+        return rowComposeMat4(toVec4_(innerT.rows[0], pos.x), toVec4_(innerT.rows[1], pos.y), toVec4_(innerT.rows[2], pos.z), {0.0f, 0.0f, 0.0f, 1.0f});
     }
 
     template<typename T> 

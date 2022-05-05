@@ -1,6 +1,7 @@
 #include "core.h"
 #include "string.h"
 #include "memory.h"
+#include <intrinsics.h>
 
 namespace IME {
 
@@ -12,13 +13,23 @@ namespace IME {
         }
 
         byte* alloc(sizeptr size) {
+#if  1
+            byte* data = (byte*)malloc(size);
+            memset(data, 0, size);
+            return data;
+#else
             IME_DEBUG_ASSERT_BREAK(globalmemory, "global memory not yet set!")
             return (byte*)allocateMemory_(globalmemory, size);
+#endif //  0
         }
 
         void dealloc(sizeptr size, byte* data) {
+#if 1
+            free(data);
+#else
             IME_DEBUG_ASSERT_BREAK(globalmemory, "global memory not yet set!")
             deallocateMemory_(globalmemory, data, size);
+#endif
         }
     }
 
@@ -84,6 +95,7 @@ namespace IME {
 
     //inserting a poolchunk in its correct position
     void insertPoolChunk(PoolChunk* pool, PoolChunk chunk, uint32* poolsize) {
+        IME_DEBUG_ASSERT_BREAK(chunk.size > 0, "")
         for(uint32 i = 0; i < *poolsize; i++) {
             PoolChunk* current = &pool[i];
             if(current->size > chunk.size) {
@@ -102,6 +114,7 @@ namespace IME {
 
     void 
     removePoolChunk(PoolChunk* pool, uint32 index, uint32* poolsize) {
+        IME_DEBUG_ASSERT_BREAK(index < *poolsize, "")
         for(int i = index + 1; i < *poolsize; i++) {
             pool[i - 1] = pool[i];
         }
@@ -112,6 +125,8 @@ namespace IME {
 
     void
     replaceSmallerPoolChunk(PoolChunk* pool, uint32 index, PoolChunk chunk, uint32 poolsize) {
+    
+        IME_DEBUG_ASSERT_BREAK(index < poolsize, "")
         for(int32 i = index - 1; i >= 0; i--) {
             PoolChunk* current = &pool[i];
             if(current->size > chunk.size) {
@@ -127,6 +142,8 @@ namespace IME {
 
     void 
     replaceLargerPoolChunk(PoolChunk* pool, uint32 index, PoolChunk chunk, uint32 poolsize) {
+        
+        IME_DEBUG_ASSERT_BREAK(index < poolsize, "")
         for(uint32 i = index + 1; i < poolsize; i++) {
             PoolChunk* current = &pool[i];
             if(current->size < chunk.size) {
@@ -151,71 +168,89 @@ namespace IME {
     void
     deallocateMemory_(MemoryPool* pool, byte* data, sizeptr size) {
 
+        IME_DEBUG_ASSERT_BREAK(size > 0, "you cant deallocate 0 memory")
+
+        sizeptr size_ = ((sizeptr*)data)[-1];
+        sizeptr totalsize = size + sizeof(sizeptr);
+
+        IME_DEBUG_ASSERT_BREAK(size == size_, "size given is not the same as allocated!")
+
         PoolChunk newpoolchunk = {};
-        newpoolchunk.base = data;
-        newpoolchunk.size = size;
+        newpoolchunk.base = data - sizeof(sizeptr);
+        newpoolchunk.size = totalsize;
 
         uint32 beforeindex = NULL_INDEX;
         uint32 afterindex = NULL_INDEX;
 
-        memset(data, 0, size);
+        memset(newpoolchunk.base, 0, newpoolchunk.size);
 
         //finding if there are any chunks adjacent to the this chunk
         for(int i = 0; i < pool->poolchunkcount; i++) {
             PoolChunk* current = &pool->pool[i];
-            if(current->base == newpoolchunk.base + size) {
+            if(current->base == newpoolchunk.base + newpoolchunk.size) {
                 afterindex = i;
             }
-            if(current->base + current->size == newpoolchunk.base) {
+            else if(current->base + current->size == newpoolchunk.base) {
                 beforeindex = i;
             }
         }
 
         //calculating the new pool in case of no adjecent chunks
         if(beforeindex == NULL_INDEX && afterindex == NULL_INDEX) {
-            if (newpoolchunk.base + size >= pool->base + pool->used) {
-                pool->used -= newpoolchunk.size;
+            if (newpoolchunk.base + newpoolchunk.size >= pool->base + pool->used) {
+                pool->used = newpoolchunk.base - pool->base;
             } else {
                 IME_DEBUG_ASSERT_BREAK(pool->poolchunkcount + 1 <= pool->maxpoolchunkcount, "memory pool to fragmentated!")
                 insertPoolChunk(pool->pool, newpoolchunk, &pool->poolchunkcount);
             }
         }
 
-        //calculating the new pool in case of a chunk after the new chunk
+        //calculating the new pool in case of a chunk before the new chunk
         else if(beforeindex != NULL_INDEX && afterindex == NULL_INDEX) {
             PoolChunk before = pool->pool[beforeindex];
+
+            IME_DEBUG_ASSERT_BREAK(before.base + before.size == newpoolchunk.base, "")
+
             before.size += newpoolchunk.size;
 
             if(before.base + before.size >= pool->base + pool->used) {
-                pool->used -= before.size;
+                pool->used = newpoolchunk.base - pool->base;
                 removePoolChunk(pool->pool, beforeindex, &pool->poolchunkcount);
             } else {
                 replaceLargerPoolChunk(pool->pool, beforeindex, before, pool->poolchunkcount);
             }
         }
 
-        //calculating the new pool in case of a chunk befor the new chunk
+        //calculating the new pool in case of a chunk after the new chunk
         else if(beforeindex == NULL_INDEX && afterindex != NULL_INDEX) {
             PoolChunk after = pool->pool[afterindex];
+
+            IME_DEBUG_ASSERT_BREAK(newpoolchunk.base + newpoolchunk.size == after.base, "")
+
             after.size += newpoolchunk.size;
             after.base = newpoolchunk.base;
 
+            //if pool is at the end of the memory;
             if(after.base + after.size >= pool->base + pool->used) {
-                pool->used -= after.size;
+                pool->used = newpoolchunk.base - pool->base;
                 removePoolChunk(pool->pool, afterindex, &pool->poolchunkcount);
             } else {
                 replaceLargerPoolChunk(pool->pool, afterindex, after, pool->poolchunkcount);
             }
         } 
         
-        //calculating new pool in case of two adjecent chunks
+        //calculating new pool in case of two adjacent chunks
         else if(beforeindex != NULL_INDEX && afterindex != NULL_INDEX) {
             PoolChunk after = pool->pool[afterindex];
             PoolChunk before = pool->pool[beforeindex];
+
+            IME_DEBUG_ASSERT_BREAK(newpoolchunk.base + newpoolchunk.size == after.base, "")
+            IME_DEBUG_ASSERT_BREAK(before.base + before.size == newpoolchunk.base, "")
+
             before.size += newpoolchunk.size + after.size;
 
             if(before.base + before.size >= pool->base + pool->used) {
-                pool->used -= before.size;
+                pool->used = newpoolchunk.base - pool->base;
                 removePoolChunk(pool->pool, afterindex, &pool->poolchunkcount);
                 removePoolChunk(pool->pool, beforeindex, &pool->poolchunkcount);
             } else {
@@ -233,19 +268,37 @@ namespace IME {
 
     void*
     allocateMemory_(MemoryPool* pool, sizeptr datasize) {
-        if(pool->largestpoolchunk < datasize) {
-            void* result = (byte*)pool->base + pool->used;
-            pool->used += datasize;
+
+        sizeptr totalsize = datasize + sizeof(sizeptr);
+
+        if(pool->largestpoolchunk < totalsize) {
+
+            //set size of the memory before the memory itself
+            sizeptr* size = (sizeptr*)(pool->base + pool->used);
+            *size = datasize;
+
+            //resulting memory pointer
+            void* result = (byte*)pool->base + pool->used + sizeof(sizeptr);
+
+            //updating the used amount
+            pool->used += totalsize;
+
             IME_DEBUG_ASSERT_BREAK(pool->used < pool->size, "")
             return result;
+
         } else {
             for(uint32 i = 0; i < pool->poolchunkcount; i++) {
                 PoolChunk current = pool->pool[i];
-                if(current.size >= datasize) {
-                    void* result = current.base;
+                if(current.size >= totalsize) {
 
-                    current.base += datasize;
-                    current.size -= datasize;
+                    void* result = current.base + sizeof(sizeptr);
+                    sizeptr* size = (sizeptr*)current.base;
+                    *size = datasize;
+
+                    current.base += totalsize;
+                    current.size -= totalsize;
+
+                    IME_DEBUG_ASSERT_BREAK(current.size >= 0, "")
                     if(current.size == 0 ) {
                         //remove instance from the pool
                         removePoolChunk(pool->pool, i, &pool->poolchunkcount);
@@ -271,7 +324,11 @@ namespace IME {
         }
     }
 
+    struct MemoryMap {
 
+
+
+    };
     
 
 }

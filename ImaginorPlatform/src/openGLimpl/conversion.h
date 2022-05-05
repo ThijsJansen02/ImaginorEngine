@@ -50,7 +50,8 @@ namespace IME::OpenGL {
     };
 
     int32 getDataType(gsdatatype datatype) {
-        return gldatatypes[datatype];
+        int32 result = gldatatypes[datatype];
+        return result;
     }
 
     global_var int32 datatypecomponents[18] = {
@@ -91,9 +92,9 @@ namespace IME::OpenGL {
 
     global_var int32 glcolorformats[] = {
         GL_RED,
-        GL_RED, 
-        GL_RED, 
-        GL_RED,
+        GL_GREEN, 
+        GL_BLUE, 
+        GL_ALPHA,
         GL_RG,
         GL_RGB,
         GL_RGBA,
@@ -104,7 +105,8 @@ namespace IME::OpenGL {
     };
 
     int32 getColorFormat(gstextureformat format) {
-        return glcolorformats[format];
+        int32 result = glcolorformats[format];
+        return result;
     }
 
      int32 gltexturewraps[] = { 

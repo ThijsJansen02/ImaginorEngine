@@ -11,20 +11,16 @@ namespace IME
     template<typename T>
     struct vec4
     {
-        T x, y, z, w;
-/*
         union {
             struct {
-                T x, y, z;
+                T x, y, z, w;
             };
             struct {
-                T r, g, b;
+                T left, right, top, bottom;
             };
-            struct {
-                T data[3];
-            }
-        }
-*/
+            T data[4];
+        };
+
         void operator+=(const vec4& right) {
             x += right.x;
             y += right.y;

@@ -1,12 +1,12 @@
 #pragma once
 #include <core.h>
 #include "../iterators/iterator_L.h"
-#include "../View.h";
+#include "../View.h"
 
 namespace IME::Data {
 
-	template<typename T, byte*(*allocator)(uint32 size), void(*deallocator)(uint32 size, byte* data)>
-	class DoublyLinkedList {
+	template<typename T, byte*(*allocator)(sizeptr size), void(*deallocator)(sizeptr size, byte* data)>
+	class DoublyLinkedList_ {
 	public:
 		struct Node {
 		public:
@@ -29,13 +29,46 @@ namespace IME::Data {
 			const ValueType& getValue() const {
 				return m_Val;
 			}
+			friend class DoublyLinkedList_;
 
 		protected:
-			friend class DoublyLinkedList<T>;
 
 			Node* m_Next = nullptr;
 			Node* m_Prev = nullptr;
 			ValueType m_Val;
+		};
+
+		struct ProxyNode {
+			Node* m_Next = nullptr;
+			Node* m_Prev = nullptr;
+		};
+
+		struct iterator {
+			iterator(Node* node) {
+				m_Node = node;
+			}
+
+			void operator++() {
+				m_Node = m_Node->getNext();
+			}
+
+			void operator--() {
+				m_Node = m_Node->getPrev();
+			}
+
+			bool operator==(iterator other) {
+				return this->m_Node == other.m_Node;
+			}
+
+			bool operator!=(iterator other) {
+				return !(this->m_Node == other.m_Node);
+			}
+
+			Node* operator*() {
+				return m_Node;
+			}
+
+			Node* m_Node;
 		};
 
 
@@ -43,28 +76,19 @@ namespace IME::Data {
 		using ReferenceType = ValueType&;
 		using PointerType = ValueType*;
 
-		using iterator = iterator_L_base<Node>;
+		using iterator = iterator;
 		using const_iterator = iterator_L_base_const<Node>;
 
-		DoublyLinkedList() : m_Head(nullptr), m_Tail(nullptr) {
+		void init() {
+			m_Head = nullptr;
+			m_Tail = nullptr;
 
 			m_Count = 0;
-			Node* tail = (Node*) ::operator allocator(sizeof(Node));
+			Node* tail = (Node*)allocator(sizeof(ProxyNode));
+			tail->m_Next = nullptr;
+			tail->m_Prev = nullptr;
 			m_Head = tail;
 			m_Tail = tail;
-		}
-
-		DoublyLinkedList(const std::initializer_list<T>& in) {
-			
-			Node* tail = (Node*) ::operator allocator(sizeof(Node));
-			m_Head = tail;
-			m_Tail = tail;
-			m_Count = 0;
-
-			for (const T& it : in) {
-				push_back(it);
-			}
-			return;
 		}
 
 		iterator begin() { return iterator(m_Head); }
@@ -139,6 +163,50 @@ namespace IME::Data {
 			m_Count++;
 		}
 
+		void remove(uint32_t index) {
+
+			if (index > m_Count / 2) {
+
+				//std::cout << "used upper it" << std::endl;
+				iterator it = iterator(m_Tail);
+				for (int i = m_Count; i > index; i--) {
+					it--;
+				}
+				Node* insert = it.getNode();
+				Node* newnode = allocator(sizeof(Node));
+				*newnode = Node(val, insert, insert->getPrev());
+
+				insert->getPrev()->m_Next = newnode;
+				insert->m_Prev = newnode;
+			} else {
+
+				iterator it = iterator(m_Head);
+
+				for (int i = 0; i < index; i++) {
+					it++;
+				}
+
+				Node* insert = it.getNode();
+				Node* newnode = allocator(sizeof(Node)); 
+				*newnode = Node(val, insert, insert->getPrev());
+
+				insert->getPrev()->m_Next = newnode;
+				insert->m_Prev = newnode;
+			}
+			m_Count++;
+		}
+
+		void remove(Node* node) {
+			Node* prev = node->m_Prev;
+			Node* next = node->m_Next;
+			
+			prev->m_Next = next;
+			next->m_Prev = prev;
+
+			deallocator(sizeof(Node), (byte*)node);
+		}
+
+
 		inline void push(const T& val) {
 			push_front(val);
 		}
@@ -172,9 +240,10 @@ namespace IME::Data {
 		
 		void push_front(const T& val) {
 
-			Node* newnode = allocator(sizeof(Node));
+			Node* newnode = (Node*)allocator(sizeof(Node));
 			*newnode = Node(val, m_Head, nullptr);
-			m_Head.m_Prev = newnode;
+			newnode->m_Next = m_Head;
+			m_Head->m_Prev = newnode;
 			m_Head = newnode;
 			m_Count++;
 			return;
@@ -182,10 +251,11 @@ namespace IME::Data {
 
 		void push_back(const T& val) {
 			
-			Node* newtail = (Node*) ::operator allocator(sizeof(Node));
-			newtail->m_Prev = m_Tail;
-			m_Tail->m_Next = newtail;
-			m_Tail = newtail;
+			Node* newnode = (Node*)allocator(sizeof(Node));
+			newnode->m_Next = m_Tail;
+			newnode->m_Prev = m_Tail->m_Prev;
+			m_Tail->m_Prev = newnode;
+
 			m_Count++;
 			return;
 		}
@@ -202,7 +272,6 @@ namespace IME::Data {
 			begin() == end();
 		}
  
-	private:
 		Node* m_Head;
 		Node* m_Tail;
 

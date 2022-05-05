@@ -2,7 +2,7 @@
 
 #ifdef IME_DEBUG
 	#include<intrin.h>
-	#define IME_DEBUG_ASSERT_BREAK(x, message) if(!(x)) { __debugbreak(); }
+#define IME_DEBUG_ASSERT_BREAK(x, message) if(!(x)) { __debugbreak(); }
 	#define IME_DEBUG_BREAK() { __debugbreak(); }
 #elif
 	#define IME_DEBUG_ASSERT_BREAK(x, message) if(!(x)) {  }
@@ -20,7 +20,7 @@
 #define internal static;
 #define local_persist static;
 
-#define PI32 3.14159265359
+#define PI32 3.14159265359f
 
 
 namespace IME {

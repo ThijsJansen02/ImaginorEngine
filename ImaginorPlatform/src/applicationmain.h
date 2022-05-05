@@ -4,8 +4,8 @@
 
 namespace IME {
 
-    #define IME_APPLICATION_UPDATE(name) bool32 name(PlatformInterface platform)
-    #define IME_APPLICATION_INIT(name) bool32 name(PlatformInterface platform)
+    #define IME_APPLICATION_UPDATE(name) IME::bool32 name(IME::PlatformInterface platform)
+    #define IME_APPLICATION_INIT(name) IME::bool32 name(IME::PlatformInterface platform)
 
     typedef IME_APPLICATION_UPDATE(application_update);
     typedef IME_APPLICATION_INIT(application_init);

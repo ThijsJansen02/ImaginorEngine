@@ -10,8 +10,16 @@ namespace IME
     {
         vec2(T x, T y) : x(x), y(y) {}
         vec2() = default;
-        T x;
-        T y;
+        union {
+            struct {
+                T x;
+                T y;
+            };
+            struct {
+                T width;
+                T height;
+            };
+        };
 
         void operator+=(const vec2& right) {
             x += right.x;
@@ -23,6 +31,12 @@ namespace IME
     inline vec2<T> operator*(const vec2<T> &left, const vec2<R> &right)
     {
         return {left.x * right.x, left.y * right.y};
+    }
+
+    template<typename T, typename R>
+    inline bool operator==(const vec2<T> &left, const vec2<R> &right)
+    {
+        return left.x == right.x && left.y == right.y;
     }
 
     template<typename T, typename R>

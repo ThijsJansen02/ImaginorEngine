@@ -436,11 +436,18 @@ namespace IME {
 
     internal void 
     win32_dispatchEvent(Event event) {
+
         if(bool(event.destinations & IME_CONSOLE) == true) {
-            consoleevents.input.push_back(copyEvent(event));
+            if(consoleevents.open) {
+                if(consoleevents.input.getCount() < consoleevents.input.getCapacity() - 2) {
+                    consoleevents.input.push_back(copyEvent(event));
+                }
+            }
         }
         if(bool(event.destinations & IME_APP) == true) {
-            applicationevents.input.push_back(copyEvent(event));
+            if(applicationevents.input.getCount() < applicationevents.input.getCapacity() - 2) {
+                applicationevents.input.push_back(copyEvent(event));
+            }
         }
         if(bool(event.destinations & IME_PLATFORM) == true) {
             applicationevents.input.push_back(copyEvent(event));
@@ -461,7 +468,7 @@ namespace IME {
     }
 
     DWORD WINAPI consoleThread(LPVOID lpParameter);
-    struct KeyData {
+    struct KeyData { 
         uint32 repeats;
     };
 
@@ -486,9 +493,15 @@ extern "C" {
     _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
 }
 
+inline IME::uint64 zip(IME::uint32 v1, IME::uint32 v2) {
+    IME::uint64 result = (IME::uint64)v1;
+    result = result << 32;
+    result += v2;
+    return result;
+}
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
-{
+{ 
     DWORD ThreadID;
     HANDLE threadhandle = CreateThread(
         0,
@@ -572,6 +585,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         keyboard.isKeyPressed = IME::win32_isKeyPressed;
         platforminterface.keyboard = keyboard;
 
+        IME::Mouse mouse;
+        mouse.isButtonPressed =IME::win32_isMouseButtonPressed;
+        platforminterface.mouse = mouse;
+
         IME::RenderCommands rendercommands;
         rendercommands.rbo_bind = IME::OpenGL::ime_glapi_bind_rbo;
         rendercommands.rbo_create = IME::OpenGL::ime_glapi_create_rbo;
@@ -595,10 +612,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
         rendercommands.texture_create = IME::OpenGL::ime_glapi_texture_create;
         rendercommands.texture_bind = IME::OpenGL::ime_glapi_texture_bind;
+        rendercommands.texture_reset = IME::OpenGL::ime_glapi_texture_reset;
 
         rendercommands.fbo_bind = IME::OpenGL::ime_glapi_fbo_bind;
         rendercommands.fbo_create = IME::OpenGL::ime_glapi_fbo_create;
         rendercommands.fbo_createtextureattachment = IME::OpenGL::ime_glapi_fbo_create_texture_attachment;
+        rendercommands.fbo_createrenderbufferattachment = IME::OpenGL::ime_glapi_fbo_create_rbo_attachment;
+        rendercommands.fbo_resize = IME::OpenGL::ime_glapi_fbo_resize; 
 
         rendercommands.setviewport = IME::OpenGL::ime_glapi_set_viewport;
         rendercommands.clear = IME::OpenGL::ime_glapi_clear;
@@ -607,6 +627,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
         rendercommands.drawarray = IME::OpenGL::ime_glapi_draw_array;
         rendercommands.drawindexed = IME::OpenGL::ime_glapi_draw_indexed;
+        
         platforminterface.gfx = rendercommands;
 
         IME::Time time;
@@ -622,8 +643,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         platforminterface.controllers = controllers;
 
         IME::WindowData windowdata;
-        windowdata.height = applicationwindow.nativewindow.windowstate.width;
-        windowdata.width = applicationwindow.nativewindow.windowstate.height;
+        windowdata.height = applicationwindow.nativewindow.windowstate.height;
+        windowdata.width = applicationwindow.nativewindow.windowstate.width;
         platforminterface.window = windowdata;
     }
     
@@ -675,6 +696,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
                 e.destinations = IME::IME_APP;
                 e.source = IME::IME_PLATFORM;
                 e.param1 = IME::IME_LEFT_MB;
+                e.param2 = zip(platforminterface.mouse.relativemousepos.x, platforminterface.mouse.relativemousepos.y);
                 e.type = IME::IME_MOUSE_BUTTON_PRESSED;
 
                 pressedmousebuttons[e.param1].pressed = true;
@@ -688,6 +710,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
                 e.destinations = IME::IME_APP;
                 e.source = IME::IME_PLATFORM;
                 e.param1 = IME::IME_LEFT_MB;
+                e.param2 = zip(platforminterface.mouse.relativemousepos.x, platforminterface.mouse.relativemousepos.y);
                 e.type = IME::IME_MOUSE_BUTTON_RELEASED;
 
                 pressedmousebuttons[e.param1].pressed = false;
@@ -701,11 +724,26 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
                 e.destinations = IME::IME_APP;
                 e.source = IME::IME_PLATFORM;
                 e.param1 = IME::IME_RIGHT_MB;
+                e.param2 = zip(platforminterface.mouse.relativemousepos.x, platforminterface.mouse.relativemousepos.y);
                 e.type = IME::IME_MOUSE_BUTTON_RELEASED;
 
-                pressedmousebuttons[e.param1].pressed = true;
+                pressedmousebuttons[e.param1].pressed = false;
 
                 IME::applicationevents.input.push_back(e);
+            }
+
+            if(msg.message == WM_MOUSEWHEEL) {
+
+                IME::int32 zDelta = (msg.wParam & (1 << 31)) >> 31;
+                IME::Event e;
+                e.destinations = IME::IME_APP;
+                e.source = IME::IME_PLATFORM;
+                e.param1 = *(IME::uint32*)&zDelta;
+                e.param2 = 0;
+                e.type = IME::IME_MOUSE_SCROLLED;
+
+                IME::applicationevents.input.push_back(e);
+
             }
 
             if(msg.message == WM_RBUTTONDOWN) {
@@ -714,24 +752,34 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
                 e.destinations = IME::IME_APP;
                 e.source = IME::IME_PLATFORM;
                 e.param1 = IME::IME_RIGHT_MB;
+                e.param2 = zip(platforminterface.mouse.relativemousepos.x, platforminterface.mouse.relativemousepos.y);
                 e.type = IME::IME_MOUSE_BUTTON_PRESSED;
 
-                pressedmousebuttons[e.param1].pressed = false;
+                pressedmousebuttons[e.param1].pressed = true;
 
                 IME::applicationevents.input.push_back(e);
             }
 
             if(msg.message == WM_KEYDOWN) {
+                
+                IME::uint32 buffer = 0;
 
+                BYTE keyboard[256];
+                GetKeyboardState(keyboard);
+
+                pressedkeys[msg.wParam].repeats = 1;
+                int result = ToAscii(msg.wParam, 0, keyboard, (LPWORD)&buffer, 0);
+                
                 IME::Event e;
                 e.destinations = IME::IME_APP;
                 e.source = IME::IME_PLATFORM;
                 e.param1 = msg.wParam;
-                e.param2 = ++pressedkeys[msg.wParam].repeats;
+                e.param2 = zip(buffer, (IME::uint32)pressedkeys[msg.wParam].repeats);
                 e.type = IME::IME_KEY_PRESSED;
 
                 IME::applicationevents.input.push_back(e);
 
+#ifdef INPUTRECORD 
                 if(msg.wParam == 'R') {
 
                     if(platformstate.isrecording) {
@@ -758,7 +806,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
                         IME::win32_beginPlaybackInput(&platformstate);
                     }
                 }
+#endif
             }
+
             if(msg.message == WM_KEYUP) {
                 IME::Event e;
                 pressedkeys[msg.wParam].repeats = 0;

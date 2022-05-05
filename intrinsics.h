@@ -3,24 +3,55 @@
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
+#include <cstdlib>
 
 namespace IME
 {
+    inline bool compareStrings(const char* s1, const char* s2) {
+        int32 result = strcmp(s1, s2);
+        return !*(bool*)&result;
+    }
+
+    inline void int32ToString(char* buffer, uint32 value, sizeptr s) {
+        sprintf_s(buffer, s, "%d", value);
+    }
+
+    inline uint32 stringToInt32(const char* string) {
+        return atoi(string);
+    }
+
+    inline real32
+    stringToReal32(const char* str) {
+        return strtof(str, nullptr);
+    } 
+
     inline real32 squareRootReal32(IME::real32 value) {
         return sqrtf(value);
     }
 
-    inline uint32 absolute(int32 value) {
+    inline uint32 absoluteInt32(int32 value) {
         return abs(value);
     }
 
+    inline real32 arcSinReal32(real32 value) {
+        return asinf(value);
+    }
+
+    inline real32 arcTan2Real32(real32 x, real32 y) {
+        return atan2f(x, y);
+    }
+
+    inline real32 coTangent(real32 value) {
+        return 1.0f / tanf(value);
+    }
+
     inline real32 
-    sine(real32 angle) {
+    sinReal32(real32 angle) {
         return sinf(angle);
     }
 
     inline real32 
-    cosine(real32 angle) {
+    cosReal32(real32 angle) {
         return cosf(angle);
     }
 
@@ -75,11 +106,21 @@ namespace IME
 
     inline void
     copy(byte* src, byte* dst, sizeptr size) {
-        /*
-        for (int64 i = size - 1; i >= 0; i--) {
-            dst[i] = src[i];
-        }*/
+        
+        //for (int64 i = ((int64)size) - 1; i >= 0; i--) {
+        //    dst[i] = src[i];
+        //}
 
         memcpy((void*)dst, (void*)src, size);
+    } 
+
+    inline void
+    copyforwards(byte* src, byte* dst, sizeptr size) {
+        
+        for (int64 i = 0; i < size; i++) {
+            dst[i] = src[i];
+        }
+
+        //memcpy((void*)dst, (void*)src, size);
     } 
 }

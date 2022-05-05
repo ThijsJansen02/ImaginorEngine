@@ -26,6 +26,10 @@ internal thread_local PFNGLUNIFORM1IPROC glUniform1i_;
 internal thread_local PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation_;
 internal thread_local PFNGLCREATESHADERPROC glCreateShader_;
 internal thread_local PFNGLCREATEPROGRAMPROC glCreateProgram_;
+internal thread_local PFNGLGENRENDERBUFFERSPROC glGenRenderbuffers_;
+internal thread_local PFNGLRENDERBUFFERSTORAGEPROC glRenderbufferStorage_;
+internal thread_local PFNGLBINDRENDERBUFFERPROC glBindRenderbuffer_;
+internal thread_local PFNGLFRAMEBUFFERRENDERBUFFERPROC glFramebufferRenderbuffer_;
 
 internal thread_local PFNGLUSEPROGRAMPROC glUseProgram_;
 internal thread_local PFNGLSHADERSOURCEPROC glShaderSource_;
@@ -73,6 +77,10 @@ namespace IME::OpenGL {
         glGetUniformLocation_ = (PFNGLGETUNIFORMLOCATIONPROC)wglGetProcAddress("glGetUniformLocation");
         glCreateShader_ = (PFNGLCREATESHADERPROC) wglGetProcAddress("glCreateShader");
         glCreateProgram_ = (PFNGLCREATEPROGRAMPROC) wglGetProcAddress("glCreateProgram");
+        glGenRenderbuffers_ = (PFNGLGENRENDERBUFFERSPROC) wglGetProcAddress("glGenRenderbuffers");
+        glRenderbufferStorage_ = (PFNGLRENDERBUFFERSTORAGEPROC) wglGetProcAddress("glRenderbufferStorage");
+        glBindRenderbuffer_ = (PFNGLBINDRENDERBUFFERPROC) wglGetProcAddress("glBindRenderbuffer");
+        glFramebufferRenderbuffer_ = (PFNGLFRAMEBUFFERRENDERBUFFERPROC) wglGetProcAddress("glFramebufferRenderbuffer");
 
         glUseProgram_ = (PFNGLUSEPROGRAMPROC)wglGetProcAddress("glUseProgram");
         glShaderSource_ = (PFNGLSHADERSOURCEPROC)wglGetProcAddress("glShaderSource");
@@ -89,10 +97,13 @@ namespace IME::OpenGL {
         glCreateFramebuffers_ = (PFNGLCREATEFRAMEBUFFERSPROC)wglGetProcAddress("glCreateFramebuffers");
         glBindFramebuffer_ = (PFNGLBINDFRAMEBUFFERPROC)wglGetProcAddress("glBindFramebuffer");
         glTexStorage2D_ = (PFNGLTEXSTORAGE2DPROC)wglGetProcAddress("glTexStorage2D");
-        glFramebufferTexture2D_ = (PFNGLFRAMEBUFFERTEXTURE2DPROC)wglGetProcAddress("glFrameBufferTexture2D"); 
+        glFramebufferTexture2D_ = (PFNGLFRAMEBUFFERTEXTURE2DPROC)wglGetProcAddress("glFramebufferTexture2D"); 
         glGetShaderInfoLog_ = (PFNGLGETSHADERINFOLOGPROC)wglGetProcAddress("glGetShaderInfoLog");
 
         glDebugMessageCallback_ = (PFNGLDEBUGMESSAGECALLBACKPROC)wglGetProcAddress("glDebugMessageCallback");
+
+        int32 offset;
+        glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &offset);
     }
 
     template<typename T>
@@ -130,6 +141,15 @@ namespace IME::OpenGL {
         ArrayList<gl_id> vbos;
     };
 
+    struct RenderBufferObject {
+        GLuint id = 0;
+        uint32 width;
+        uint32 height;
+
+        gl_id parentfbo;
+        gstextureformat format;
+    };
+
     struct Texture {
 
         GLuint id = 0;
@@ -137,12 +157,16 @@ namespace IME::OpenGL {
     };
 
     struct FrameBufferAttachment {
-        gsframebufferattachmenttype type;
-        gl_id id;
+        bool32 istexture;
+        gl_id ptr;
     };
 
     struct FrameBuffer {
         GLuint id = 0;
+
+        uint32 width;
+        uint32 height;
+
         ArrayList<FrameBufferAttachment> attachments;
     };
 
@@ -159,6 +183,7 @@ namespace IME::OpenGL {
         OpenGL::PrimitiveSet<UniformBufferObject, 1024> ubos;
         OpenGL::PrimitiveSet<Texture, 1024> textures;
         OpenGL::PrimitiveSet<FrameBuffer, 1024> fbos;
+        OpenGL::PrimitiveSet<RenderBufferObject, 1024> rbos;
 
         EventQueue* events;
 
@@ -169,6 +194,7 @@ namespace IME::OpenGL {
         gl_id boundibo;
         gl_id boundshader;
         gl_id boundtexture;
+        gl_id boundrbo;
     };
 
     global_var thread_local State glstate = {0};
@@ -200,6 +226,7 @@ namespace IME::OpenGL {
         glstate.boundvao = 0;
         glstate.boundvbo = 0;
         glstate.boundshader = 0;
+        glstate.boundfbo = 0;
 
         glstate.events = eventqueue;
 
@@ -209,6 +236,7 @@ namespace IME::OpenGL {
         clearPrimitiveSet(&glstate.vaos);
         VertexArrayObject nullvao;
         nullvao.id = 0;
+        nullvao.ibo = 0;
         addNewPrimitive(&glstate.vaos, nullvao);
 
         clearPrimitiveSet(&glstate.vbos);
@@ -229,6 +257,7 @@ namespace IME::OpenGL {
         clearPrimitiveSet(&glstate.ubos);
         UniformBufferObject nullubo;
         nullubo.id = 0;
+        nullubo.size = 0;
         addNewPrimitive(&glstate.ubos, nullubo);
 
         clearPrimitiveSet(&glstate.textures);
@@ -240,6 +269,11 @@ namespace IME::OpenGL {
         FrameBuffer nullfbo;
         nullfbo.id = 0;
         addNewPrimitive(&glstate.fbos, nullfbo);
+
+        clearPrimitiveSet(&glstate.rbos);
+        RenderBufferObject nullrbo;
+        nullrbo.id = 0;
+        addNewPrimitive(&glstate.rbos, nullrbo);
         
         glstate.inited = true;
     }
@@ -249,7 +283,7 @@ namespace IME::OpenGL {
 
         VertexArrayObject vao;
         vao.ibo = 0;
-        vao.vbos = ArrayList<gl_id>::create(0);
+        vao.vbos.init(0);
         glGenVertexArrays_(1, &vao.id);
         glBindVertexArray_(vao.id);
         glstate.boundvao = addNewPrimitive(&glstate.vaos, vao);
@@ -378,7 +412,7 @@ namespace IME::OpenGL {
         IME_DEBUG_ASSERT_BREAK(glstate.inited, "gl is not yet inited!")
 
         ShaderProgram* shader = &glstate.shaders.data[glstate.boundshader];
-        unsigned int uniformblockindex = glGetUniformBlockIndex_(shader->program, uniformname);
+        GLint uniformblockindex = glGetUniformBlockIndex_(shader->program, uniformname);
         glUniformBlockBinding_(shader->program, uniformblockindex, bindingpoint);
     }
 
@@ -386,7 +420,7 @@ namespace IME::OpenGL {
         IME_DEBUG_ASSERT_BREAK(glstate.inited, "gl is not yet inited!")
         
         ShaderProgram* shader = &glstate.shaders.data[glstate.boundshader];
-        GLuint location = glGetUniformLocation_(shader->program, uniformname);
+        GLint location = glGetUniformLocation_(shader->program, uniformname);
         glUniform1i_(location, bindingpoint); 
     }
 
@@ -483,6 +517,7 @@ namespace IME::OpenGL {
         glBindBuffer_(GL_UNIFORM_BUFFER, ubo.id);
         glBufferData_(GL_UNIFORM_BUFFER, size, data, getOpenGLBufferUsage(usage));
         glstate.boundubo = addNewPrimitive(&glstate.ubos, ubo);
+        glBindBuffer_(GL_UNIFORM_BUFFER, 0);
         return glstate.boundubo;
     }
 
@@ -491,23 +526,33 @@ namespace IME::OpenGL {
 
         glstate.boundubo = id;
         UniformBufferObject* ubo = &glstate.ubos.data[glstate.boundubo];
-        if(size == 0) {
-            glBindBufferBase_(GL_UNIFORM_BUFFER, bindingpoint, ubo->id);
-        } else {
+
+        if(size > 0) {
             glBindBufferRange_(GL_UNIFORM_BUFFER,  bindingpoint, ubo->id, offset, size);
+        } else {
+            glBindBufferBase_(GL_UNIFORM_BUFFER,  bindingpoint, ubo->id);
         }
     }
 
     extern "C" IME_GLAPI_UBO_BUFFER_DATA(ime_glapi_ubo_buffer_data) { //void ime_ubo_buffer_data(byte* data, sizeptr size, sizeptr offset, gsbufferusage usage)
         IME_DEBUG_ASSERT_BREAK(glstate.inited, "gl is not yet inited!")
         
-        glBufferData_(GL_UNIFORM_BUFFER, size, data, getOpenGLBufferUsage(usage));
+
+        UniformBufferObject* ubo = &glstate.ubos.data[glstate.boundubo];
+
+        glBindBuffer_(GL_UNIFORM_BUFFER, ubo->id);
+        glBufferData_(GL_UNIFORM_BUFFER, (GLsizeiptr)size, data, getOpenGLBufferUsage(usage));
+        glBindBuffer_(GL_UNIFORM_BUFFER, 0);
     }
 
     extern "C" IME_GLAPI_UBO_BUFFER_SUB_DATA(ime_glapi_ubo_buffer_sub_data) { //void ime_glapi_ubo_buffer_sub_data(byte* data, sizeptr size, sizeptr offset)
         IME_DEBUG_ASSERT_BREAK(glstate.inited, "gl is not yet inited!")
         
-        glBufferSubData_(GL_UNIFORM_BUFFER, offset, size, data);
+        UniformBufferObject* ubo = &glstate.ubos.data[glstate.boundubo];
+
+        glBindBuffer_(GL_UNIFORM_BUFFER, ubo->id);
+        glBufferSubData_(GL_UNIFORM_BUFFER, (GLintptr)offset, (GLsizeiptr)size, data);
+        glBindBuffer_(GL_UNIFORM_BUFFER, 0);
     }
 
     extern "C" IME_GLAPI_TEXTURE_CREATE(ime_glapi_texture_create) { //gl_id ime_glapi_texture_create(TextureProperties properties, byte* src, gstextureformat srcformat, gsdatatype srcdatatype)
@@ -536,6 +581,25 @@ namespace IME::OpenGL {
         return glstate.boundtexture;
     }
 
+    extern "C" IME_GLAPI_TEXTURE_RESET(ime_glapi_texture_reset) { //void ime_glapi_texture_resize(uint32 newwidth, uint32 newheight)
+
+        Texture* texture = &glstate.textures.data[glstate.boundtexture];
+
+        glTexImage2D(GL_TEXTURE_2D, 0, getColorFormat(properties.format), properties.width, properties.height, 0, getColorFormat(srcformat), getDataType(srcdatatype), src);
+
+        if(properties.generatemipmaps) {
+            glGenerateMipmap_(GL_TEXTURE_2D);
+        }
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, getTextureFiltering(properties.minfilter));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, getTextureFiltering(properties.magfilter));
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, getTextureWrap(properties.S));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, getTextureWrap(properties.T));
+
+        texture->props = properties;
+    }
+
     extern "C" IME_GLAPI_TEXTURE_BIND(ime_glapi_texture_bind) { //void ime_glapi_texture_bind(gl_id id, uint32 bindingpoint)
         IME_DEBUG_ASSERT_BREAK(glstate.inited, "gl is not yet inited!")
 
@@ -544,12 +608,15 @@ namespace IME::OpenGL {
         glBindTexture(GL_TEXTURE_2D, glstate.textures.data[id].id);
     }
 
-    extern "C" IME_GLAPI_FBO_CREATE(ime_glapi_fbo_create) {
+    extern "C" IME_GLAPI_FBO_CREATE(ime_glapi_fbo_create) { //gl_id ime_glapi_fbo_create(uint32 height, uint32 width)
         IME_DEBUG_ASSERT_BREAK(glstate.inited, "gl is not yet inited!")
         
         FrameBuffer framebuffer;
         glCreateFramebuffers_(1, &framebuffer.id);
+        framebuffer.attachments.init(0);
         glBindFramebuffer_(GL_FRAMEBUFFER, framebuffer.id);
+        framebuffer.height = height;
+        framebuffer.width = width;
         glstate.boundfbo = addNewPrimitive(&glstate.fbos, framebuffer);
         return glstate.boundfbo;
     }
@@ -558,29 +625,34 @@ namespace IME::OpenGL {
         IME_DEBUG_ASSERT_BREAK(glstate.inited, "gl is not yet inited!")
 
         Texture result;
+
         result.props = properties;
 
         glGenTextures(1, &result.id);
         glBindTexture(GL_TEXTURE_2D, result.id);
+
+        FrameBuffer* framebuffer = &glstate.fbos.data[glstate.boundfbo];
+        result.props.height = framebuffer->height;
+        result.props.width = framebuffer->width;
 
         if(type >= IME_COLOR_ATTACHMENT0 && type <= IME_COLOR_ATTACHMENT15) {
             glTexImage2D(
                 GL_TEXTURE_2D,                                              //target
                 0,                                                          //level
                 getColorFormat(properties.format),                          //internal format
-                properties.width,                                           //width
-                properties.height,                                          //height
+                framebuffer->width,                                           //width
+                framebuffer->height,                                          //height
                 0,                                                          //border
                 getColorFormat(properties.format),                          //format 
-                GL_UNSIGNED_INT,                                            //type
+                GL_UNSIGNED_BYTE,                                            //type
                 nullptr                                                     //data
             );
         } else {
             glTexStorage2D_(GL_TEXTURE_2D, 
                 1,  
                 getColorFormat(properties.format), 
-                properties.width, 
-                properties.height
+                framebuffer->width, 
+                framebuffer->height
             );
         }
 
@@ -596,14 +668,13 @@ namespace IME::OpenGL {
 
         glFramebufferTexture2D_(GL_FRAMEBUFFER, getFrameBufferAttachmentType(type), GL_TEXTURE_2D, result.id, 0);
 
-        FrameBuffer* framebuffer = &glstate.fbos.data[glstate.boundfbo];
+        glstate.boundtexture = addNewPrimitive(&glstate.textures, result);
 
         FrameBufferAttachment attachement;
-        attachement.id = result.id;
-        attachement.type = type;
+        attachement.ptr = glstate.boundtexture;
+        attachement.istexture = true;
         framebuffer->attachments.push_back(attachement);
 
-        glstate.boundtexture = addNewPrimitive(&glstate.textures, result);
         return glstate.boundtexture;
     }
 
@@ -613,6 +684,90 @@ namespace IME::OpenGL {
         glstate.boundfbo = id;
         glBindFramebuffer_(GL_FRAMEBUFFER, glstate.fbos.data[id].id);
     }
+
+    extern "C" IME_GLAPI_FBO_CREATE_RBO_ATTACHMENT(ime_glapi_fbo_create_rbo_attachment) { //gl_id ime_glapi_fbo_create_rbo_attachment(gstextureformat format)
+
+        RenderBufferObject result;
+        FrameBuffer* framebuffer = &glstate.fbos.data[glstate.boundfbo];
+
+        glGenRenderbuffers_(1, &result.id);
+        glBindRenderbuffer_(GL_RENDERBUFFER, result.id);
+        glRenderbufferStorage_(GL_RENDERBUFFER, getColorFormat(format), framebuffer->width, framebuffer->height);
+
+        if(format >= 7 && format <= 9) {
+            glFramebufferRenderbuffer_(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, result.id);
+        } else if (format == IME_DEPTH24_STENCIL8) {
+            glFramebufferRenderbuffer_(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, result.id);
+        } else {
+            Event e;
+            e.destinations = IME_CONSOLE;
+            e.source = IME_RENDER_API;
+            e.type = IME_DEBUG_MESSAGE;
+            e.param2 = (uint64)"renderbuffer format is not accepted!";
+            e.param1 = IME_WARN;
+            glstate.events->output.push_back(IME::copyEvent(e));
+            return 0;
+        }
+
+        glBindRenderbuffer_(GL_RENDERBUFFER, 0);
+
+        result.format = format;
+        result.parentfbo = glstate.boundfbo;
+
+        glstate.boundrbo = addNewPrimitive(&glstate.rbos, result);
+        
+        FrameBufferAttachment attachment;
+        attachment.istexture = false;
+        attachment.ptr = glstate.boundrbo;
+
+
+        framebuffer->attachments.push_back(attachment);
+        return glstate.boundrbo;
+    }
+
+    extern "C" IME_GLAPI_FBO_RESIZE(ime_glapi_fbo_resize) { //bool32 ime_glapi_fbo_resize(uint32 newwidth, uint32 newheight)
+
+        FrameBuffer* framebuffer = &glstate.fbos.data[glstate.boundfbo];
+        framebuffer->width = newwidth;
+        framebuffer->height = newheight;
+
+        for(FrameBufferAttachment attachment : framebuffer->attachments) {
+            if(attachment.istexture) {
+                Texture& textureattachment = glstate.textures.data[attachment.ptr];
+                glBindTexture(GL_TEXTURE_2D, textureattachment.id);
+                glTexImage2D(
+                    GL_TEXTURE_2D,                                              //target
+                    0,                                                          //level
+                    getColorFormat(textureattachment.props.format),                          //internal format
+                    framebuffer->width,                                           //width
+                    framebuffer->height,                                          //height
+                    0,                                                          //border
+                    getColorFormat(textureattachment.props.format),                          //format 
+                    GL_UNSIGNED_BYTE,                                            //type
+                    nullptr                                                     //data
+                );
+                textureattachment.props.width = newwidth;
+                textureattachment.props.height = newheight;
+            } else {
+                RenderBufferObject& renderbufferattachment = glstate.rbos.data[attachment.ptr];
+                renderbufferattachment.width = newwidth;
+                renderbufferattachment.height = newheight;
+
+                glBindRenderbuffer_(GL_RENDERBUFFER, renderbufferattachment.id);
+                glRenderbufferStorage_(GL_RENDERBUFFER, getColorFormat(renderbufferattachment.format), newwidth, newheight);
+            }
+        }
+
+        glBindTexture(GL_TEXTURE_2D, glstate.textures.data[glstate.boundtexture].id);
+        glBindRenderbuffer_(GL_RENDERBUFFER, glstate.rbos.data[glstate.boundrbo].id);
+
+        return true;
+    }
+
+    extern "C" IME_GLAPI_FBO_DELETE(ime_glapi_fbo_delete) {
+        return false;
+    }
+
 
     extern "C" IME_GLAPI_SET_VIEWPORT(ime_glapi_set_viewport) {
         IME_DEBUG_ASSERT_BREAK(glstate.inited, "gl is not yet inited!")
@@ -712,8 +867,8 @@ openGLMessageCallback( GLenum source,
         message
     );
 
+    OutputDebugString(buffer);
     event.param2 = (IME::uint64)buffer;
 
     user->events->output.push_back(IME::copyEvent(event));
-    //IME_DEBUG_BREAK()
 }   

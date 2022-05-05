@@ -30,7 +30,20 @@ namespace IME
             y += right.y;
             z += right.z;
         }
+
+        void operator-=(const vec3& right) {
+            x -= right.x;
+            y -= right.y;
+            z -= right.z;
+        }
     };
+
+    template<typename T, typename R>
+    inline bool operator==(const vec3<T> &left, const vec3<R> &right)
+    {
+        return left.x == right.x && left.y == right.y && left.z == right.z;
+    }
+
 
     template<typename T, typename R>
     inline vec3<T> operator*(const vec3<T> &left, const vec3<R> &right)
@@ -56,16 +69,16 @@ namespace IME
         return {left.x - right.x, left.y - right.y, left.z - right.z};
     }
 
-    template<typename T>
-    inline vec3<T> operator*(T left, const vec3<T> &right)
+    template<typename T, typename R>
+    inline vec3<T> operator*(R left, const vec3<T> &right)
     {
-        return {left * right.x, left * right.y, left * right.z};
+        return {(T)left * right.x, (T)left * right.y, (T)left * right.z};
     }
 
-    template<typename T>
-    inline vec3<T> operator*(const vec3<T> &left, T right)
+    template<typename T, typename R>
+    inline vec3<T> operator*(const vec3<T> &left, R right)
     {
-        return {left.x * right, left.y * right, left.z * right};
+        return {left.x * (T)right, left.y * (T)right, left.z * (T)right};
     }
 
     template<typename T>
@@ -94,6 +107,11 @@ namespace IME
     template<typename T> 
     inline T calclength(const vec3<T>& vector) {
         return squareRootReal32(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z);
+    }
+
+    template<typename T> 
+    inline T lengthSquared(const vec3<T>& vector) {
+        return vector.x * vector.x + vector.y * vector.y + vector.z * vector.z;
     }
 
     template<typename T>

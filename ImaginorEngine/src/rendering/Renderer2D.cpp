@@ -31,27 +31,28 @@ namespace IME::Renderer2D {
         }
     }
 
-    gl_id loadBatchShader(const char* vertexsrcpath, const char* fragmentsrcpath, PlatformInterface* platform) {
+    gl_id loadBatchShader(const char* vertexsrcpath, const char* fragmentsrcpath, const PlatformInterface& platform) {
 
-        FileBuffer fragmentsrc = platform->io.debug_readfile(fragmentsrcpath, nullptr);
-        FileBuffer vertexsrc = platform->io.debug_readfile(vertexsrcpath, nullptr);
+        FileBuffer fragmentsrc = platform.io.debug_readfile(fragmentsrcpath, nullptr);
+        FileBuffer vertexsrc = platform.io.debug_readfile(vertexsrcpath, nullptr);
 
         gl_id shader;
-        shader = platform->gfx.createshader();
-        platform->gfx.shaderaddprogram(IME_VERTEX, (char*)vertexsrc.data);
-        platform->gfx.shaderaddprogram(IME_FRAGMENT, (char*)fragmentsrc.data);
-        platform->gfx.shader_compile();
-        platform->gfx.bindshader(shader);
-        setTextureBindings("textures[%d]", platform->gfx);
+        shader = platform.gfx.createshader();
+        platform.gfx.shaderaddprogram(IME_VERTEX, (char*)vertexsrc.data);
+        platform.gfx.shaderaddprogram(IME_FRAGMENT, (char*)fragmentsrc.data);
+        platform.gfx.shader_compile();
+        platform.gfx.bindshader(shader);
+        platform.gfx.setuniformbinding("Matrices", 0);
+        setTextureBindings("textures[%d]", platform.gfx);
 
-        platform->io.debug_releasefilememory(&fragmentsrc);
-        platform->io.debug_releasefilememory(&vertexsrc);
+        platform.io.debug_releasefilememory(&fragmentsrc);
+        platform.io.debug_releasefilememory(&vertexsrc);
 
         return shader;
     }
 
     void 
-    setup(BatchRenderer2DData* data, sizeptr maxquadcount, const RenderCommands& rendercommands, MemoryPool* memory) {
+    setup(BatchRenderer2DData* data, sizeptr maxquadcount, const PlatformInterface& platform) {
         
         BatchRenderer2DData& batchrendererdata = *batchrendererdata_;
 
@@ -63,14 +64,14 @@ namespace IME::Renderer2D {
         result.indexcount = (result.vertexcount / 4) * 6;
         result.indexbuffersize = result.indexcount * sizeof(uint32);
 
-        result.localbuffer = (BatchVertex*)allocateMemory_(memory, result.vertexbuffersize);
+        result.localbuffer = (BatchVertex*) Memory::alloc(result.vertexbuffersize);
 
-        result.renderbuffer = rendercommands.rbo_create();
-        result.vertexbuffer = rendercommands.rbo_addbuffer(nullptr, result.vertexbuffersize, batchbufferlayout, IME_DYNAMIC_DRAW);
+        result.renderbuffer = platform.gfx.rbo_create();
+        result.vertexbuffer = platform.gfx.rbo_addbuffer(nullptr, result.vertexbuffersize, batchbufferlayout, IME_DYNAMIC_DRAW);
 
-        result.scenebuffer = rendercommands.createubo(nullptr, sizeof(SceneData), IME_DYNAMIC_DRAW);
+        result.scenebuffer = platform.gfx.createubo(nullptr, sizeof(SceneData), IME_DYNAMIC_DRAW);
 
-        result.rendercommands = rendercommands;
+        result.rendercommands = platform.gfx;
 
         TextureProperties props;
         props.format = IME_RGBA;
@@ -82,9 +83,9 @@ namespace IME::Renderer2D {
         props.T = IME_REPEAT;
 
         ubyte color[4] = {255, 255, 255, 255};
-        result.textures[0] = rendercommands.texture_create(props, (byte*)color, IME_RGBA, IME_UINT8);
+        result.textures[0] = platform.gfx.texture_create(props, (byte*)color, IME_RGBA, IME_UINT8);
 
-        uint32* indeces = (uint32*)allocateMemory_(memory, result.indexbuffersize);
+        uint32* indeces = (uint32*)Memory::alloc(result.indexbuffersize);
 
         uint32 vertexcount = 0;
         for(uint32 i = 0; i < result.indexcount; i += 6) {
@@ -99,8 +100,8 @@ namespace IME::Renderer2D {
             vertexcount += 4;
         }
 
-        rendercommands.rbo_setindexbuffer((byte*)indeces, result.indexbuffersize, IME_UINT32, IME_STATIC_DRAW);
-        deallocateMemory_(memory, (byte*)indeces, result.indexbuffersize);
+        platform.gfx.rbo_setindexbuffer((byte*)indeces, result.indexbuffersize, IME_UINT32, IME_STATIC_DRAW);
+        Memory::dealloc(result.indexbuffersize, (byte*)indeces);
 
         *data = result;
         batchrendererdata_ = data;
@@ -202,28 +203,28 @@ namespace IME::Renderer2D {
         vec2f halfsize = size / 2.0f;
 
         BatchVertex vertex;
-        vertex.position = { pos.x - halfsize.x, pos.y - halfsize.y };
+        vertex.position = { pos.x - halfsize.x, pos.y - halfsize.y, pos.z };
         vertex.color = color;
         vertex.texcoord = texcoords[0];
         vertex.index = (real32)textureindex;
 
         batchrendererdata.localbuffer[batchrendererdata.vertexoffset + 0] = vertex;
 
-        vertex.position = { pos.x + halfsize.x, pos.y - halfsize.y };
+        vertex.position = { pos.x + halfsize.x, pos.y - halfsize.y, pos.z };
         vertex.color = color;
         vertex.texcoord = texcoords[1];
         vertex.index = (real32)textureindex;
 
         batchrendererdata.localbuffer[batchrendererdata.vertexoffset + 1] = vertex;
 
-        vertex.position = { pos.x + halfsize.x, pos.y + halfsize.y };
+        vertex.position = { pos.x + halfsize.x, pos.y + halfsize.y, pos.z};
         vertex.color = color;
         vertex.texcoord = texcoords[2];
         vertex.index = (real32)textureindex;
 
         batchrendererdata.localbuffer[batchrendererdata.vertexoffset + 2] = vertex;
 
-        vertex.position = { pos.x - halfsize.x, pos.y + halfsize.y };
+        vertex.position = { pos.x - halfsize.x, pos.y + halfsize.y, pos.z};
         vertex.color = color;
         vertex.texcoord = texcoords[3];
         vertex.index = (real32)textureindex;
@@ -242,6 +243,13 @@ namespace IME::Renderer2D {
         BatchRenderer2DData& batchrendererdata = *batchrendererdata_;
         drawQuad({pos.x, pos.y, 0.0f}, size, colortint, texcoords, batchrendererdata.storedtextures - 1);
     }
+
+    void drawTexturedQuad(vec3f pos, vec2f size, vec4f colortint, vec2f* texcoords) {
+
+        BatchRenderer2DData& batchrendererdata = *batchrendererdata_;
+        drawQuad(pos, size, colortint, texcoords, batchrendererdata.storedtextures - 1);
+    }
+
 
     void drawTexturedQuad(vec2f pos, vec2f size, vec4f colortint) {
         vec2f texcoords[4] = {{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}};
@@ -268,11 +276,12 @@ namespace IME::Renderer2D {
         batchrendererdata_->stats.drawcalls += 1;
         batchrendererdata_->stats.quadcount += batchrendererdata_->vertexoffset / 4;
 
+        batchrendererdata.rendercommands.bindubo(batchrendererdata.scenebuffer, 0, 0, 0);
+        batchrendererdata.rendercommands.ubobuffersubdata((byte*)&batchrendererdata.scene, sizeof(SceneData), 0);
+
         batchrendererdata.rendercommands.rbo_bind(batchrendererdata.renderbuffer);
         batchrendererdata.rendercommands.bindshader(batchrendererdata.shader);
 
-        batchrendererdata.rendercommands.bindubo(batchrendererdata.scenebuffer, 0, 0, 0);
-        batchrendererdata.rendercommands.ubobuffersubdata((byte*)&batchrendererdata.scene, sizeof(SceneData), 0);
 
         for(int32 i = 0; i < batchrendererdata.storedtextures; i++) {
             batchrendererdata.rendercommands.texture_bind(batchrendererdata.textures[i], i);

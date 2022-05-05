@@ -6,8 +6,9 @@
 #include <ImaginorPlatform/src/platform.h>
 #include <LinearMath/ivec2.h>
 
-namespace IME
+namespace IME::Rendering
 {
+
     struct RendererState {
         bool32 backfaceculling;
     };
@@ -36,7 +37,7 @@ namespace IME
 
     struct ImageBuffer {
 
-        ColorFragment* data = nullptr;
+    ColorFragment* data = nullptr;
 
         uint32 width = 0;
         uint32 height = 0;
