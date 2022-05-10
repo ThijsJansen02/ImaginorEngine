@@ -49,6 +49,7 @@ namespace IME::Rendering {
         gl_id shader;
         gl_id texture;
         mat4 transform;
+        uint32 id;
     };
 
     enum RenderQueueTypes {

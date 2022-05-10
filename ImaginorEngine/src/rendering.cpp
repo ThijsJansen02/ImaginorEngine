@@ -254,13 +254,19 @@ namespace IME::Rendering {
 
     }
 
+    struct InstanceInformation {
+        mat4 transform;
+        uint32 id;
+        uint32 materialoffset;
+        uint32 padding1;
+        uint32 padding2;
+    };
+
     void 
     flushRenderSet(const RenderSet& renderset, const PlatformInterface& platform) {
 
         for(RenderQueue rq : renderset.renderqueues) {
-            if(rq.count1 <= 0) {
-                continue;
-            }
+
             mat4 viewprojection = rq.projection * rq.view;
 
             //setting up the rendertarget
@@ -275,15 +281,20 @@ namespace IME::Rendering {
                 platform.gfx.disable(IME_DEPTH_TEST);
             }
 
+            if(!rq.data1 || rq.count1 <= 0) {
+                continue;
+            }
+
             if(rq.commandtype == MESH_OBJECT) {
 
                 MeshObjectCommand* commands = (MeshObjectCommand*)rq.data1;
 
-                sizeptr transformssize = sizeof(mat4) * rq.count1;
-                mat4* transforms = (mat4*)Memory::alloc(transformssize);
+                sizeptr transformssize = sizeof(InstanceInformation) * rq.count1;
+                InstanceInformation* instanceinformation = (InstanceInformation*)Memory::alloc(transformssize);
 
                 for(sizeptr i = 0; i < rq.count1; i++) {
-                    transforms[i] = commands[i].transform;
+                    instanceinformation[i].transform = commands[i].transform;
+                    instanceinformation[i].id = commands[i].id;
                 }
 
 
@@ -298,7 +309,7 @@ namespace IME::Rendering {
                 }
 
                 platform.gfx.bindubo(renderset.buffer->id, 0, 0, 0);
-                platform.gfx.ubobuffersubdata((byte*)transforms, transformssize, 0);
+                platform.gfx.ubobuffersubdata((byte*)instanceinformation, transformssize, 0);
 
                 gl_id rbo = commands[0].rbo;
                 platform.gfx.rbo_bind(rbo);
@@ -333,7 +344,7 @@ namespace IME::Rendering {
                     offset++;
                 }
 
-                if(rq.dealloc) {
+                if(rq.dealloc && rq.data1) {
                     Memory::dealloc(rq.count1 * sizeof(MeshObjectCommand), rq.data1);
                 }
             }
@@ -373,7 +384,7 @@ namespace IME::Rendering {
                 Renderer2D::endScene();
                 Renderer2D::flush();
 
-                if(rq.dealloc) {
+                if(rq.dealloc && rq.data1) {
                     Memory::dealloc(rq.count1 * sizeof(SimpleQuadCommand), rq.data1);
                 }
             }
@@ -411,7 +422,7 @@ namespace IME::Rendering {
                 Renderer2D::endScene();
                 Renderer2D::flush();
 
-                if(rq.dealloc) {
+                if(rq.dealloc && rq.data1) {
                     Memory::dealloc(rq.count1 * sizeof(ComplexQuadCommand), rq.data1);
                 }
             }
@@ -450,7 +461,7 @@ namespace IME::Rendering {
                 Renderer2D::endScene();
                 Renderer2D::flush();
 
-                if(rq.dealloc) {
+                if(rq.dealloc && rq.data1) {
                     Memory::dealloc(rq.count1 * sizeof(SimpleTextCommand), rq.data1);
                 }
             }

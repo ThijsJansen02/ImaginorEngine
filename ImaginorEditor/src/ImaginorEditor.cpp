@@ -143,9 +143,12 @@ namespace IME::Editor
         EditorState* stateptr = (EditorState*)platform.appmemory.persistentstorage;
         Assets::initLibrary(&stateptr->assetlibrary);
 
+        //platform.gfx.disable(IME_BLEND);
+
         Assets::Library* lib = &stateptr->assetlibrary;
 
         stateptr->testimage = Assets::loadColorTexture8("hat32x32.png", platform, 4, "hat_D", lib);
+        stateptr->selectedentity.index = 0xFFFFFFFF;
 
         Renderer2D::setup(&stateptr->batchdata, 10000, platform);
         Renderer2D::setBatchRendererData(&stateptr->batchdata);
@@ -178,11 +181,6 @@ namespace IME::Editor
         UI::addConstraint(uilayer->basewindow, UI::BACKGROUND_COLOR, "1.0, 0.0, 0.0, 1.0");
         UI::addOnResizeEventHandler(uilayer->basewindow, basewindowresize, uilayer);
 
-        UI::ElementPtr input = UI::addInputField("some nice input", uilayer->basewindow, uilayer);
-        UI::addConstraint(input, UI::WIDTH, "100%");
-        UI::addConstraint(input, UI::TEXT_HEIGHT, "25px");
-
-
         UI::ElementPtr ds = UI::addDockingSpace(uilayer->basewindow, uilayer);
         UI::addConstraint(ds, UI::HEIGHT, "100%");
         UI::addConstraint(ds, UI::WIDTH, "100%");
@@ -190,19 +188,34 @@ namespace IME::Editor
         
         UI::ElementPtr renderwindow = UI::addWindowToLayer({300.0f, 1000.0f, 0.0f, 1200.0f, 900.0f}, stateptr->quadshader, "main window", platform, &stateptr->uilayer, UI::NONE);
         UI::addConstraint(renderwindow, UI::BORDER, "1.0px, 1.0px, 1.0px, 1.0px");
-        UI::addOnResizeEventHandler(renderwindow, framebufferupdate, &stateptr->uilayer);
+        UI::addConstraint(renderwindow, UI::BACKGROUND_COLOR, "0.3, 0.3, 0.3, 1.0");
+        UI::addTag(renderwindow, "render_window", uilayer);
+        
+        /*
+        UI::ElementPtr examplewindow = UI::addWindowToLayer({100.0f, 800.0f, 0.0f, 300.0f, 300.0f}, 0, "example window", platform, uilayer);
+        UI::addConstraint(examplewindow, UI::BACKGROUND_COLOR, "0.3, 0.3, 0.3, 1.0");
+        UI::addConstraint(examplewindow, UI::BORDER, "1.0px, 1.0px, 1.0px, 1.0px");
+        UI::ElementPtr examplewindow2 = UI::addWindowToLayer({400.0f, 800.0f, 0.0f, 300.0f, 300.0f}, 0, "example window 2", platform, uilayer);
+        UI::addConstraint(examplewindow2, UI::BACKGROUND_COLOR, "0.3, 0.3, 0.3, 1.0");
+        UI::addConstraint(examplewindow2, UI::BORDER, "1.0px, 1.0px, 1.0px, 1.0px");
+        */
+
+        //calculate the element of the window
+        UI::calculateAllElements(stateptr->uilayer);
+
         UI::Region windowcontentregion = UI::getContentRegion(renderwindow);
 
         stateptr->sceneframebuffer = Assets::createFrameBuffer((uint32)windowcontentregion.width, (uint32)windowcontentregion.height, platform, "sceneframebuffer", lib);
+        stateptr->idbuffer = Assets::addTextureAttachmentToFramebuffer(stateptr->sceneframebuffer, IME_RED_INT32, IME_COLOR_ATTACHMENT1, platform, "sceneidbuffer", lib);
         stateptr->colorbuffer = Assets::addTextureAttachmentToFramebuffer(stateptr->sceneframebuffer, IME_RGB, IME_COLOR_ATTACHMENT0, platform, "scenecolorbuffer", lib);
         Assets::addRenderBufferAttachmentToFramebuffer(stateptr->sceneframebuffer, IME_DEPTH24_STENCIL8, IME_DEPTH_STENCIL_ATTACHMENT, platform, "scenedepthbuffer", lib);
-
+        
+        //add the sceneimage to the renderwindow
         UI::ElementPtr sceneimage = UI::addImage(stateptr->colorbuffer, renderwindow, &stateptr->uilayer);
         UI::addConstraint(sceneimage, UI::HEIGHT, "100%");
         UI::addConstraint(sceneimage, UI::WIDTH, "100%");
-        
-        UI::dockWindow(renderwindow, ds, false, 0, uilayer);
-
+        UI::addOnClickEventHandler(sceneimage, click_view_port, uilayer);
+    
         Scene::initScene(&stateptr->scene, lib, platform);
         Scene::SceneData* scene = &stateptr->scene;
 
@@ -226,8 +239,6 @@ namespace IME::Editor
         *trans = translationMat4(vec3f{0.0f, 0.0f, 5.0f});
         Scene::addComponentToEntity(ent2, meshcomp, scene);
 
-
-
         Scene::Entity camera = Scene::addNewEntity("camera", &stateptr->scene);
         Scene::CameraComponent cameracomponent;
         cameracomponent.projection = perspectiveMat4(100.0f, 0.1f, 100.0f, (real32)stateptr->colorbuffer->props.width / (real32)stateptr->colorbuffer->props.height);
@@ -246,21 +257,16 @@ namespace IME::Editor
         script.init(script.data, scene, camera);
         Scene::addComponentToEntity(camera, script, scene);
 
-        /*
-        UI::ElementPtr examplewindow = UI::addWindowToLayer({100.0f, 800.0f, 0.0f, 300.0f, 300.0f}, 0, "example window", platform, uilayer);
-        UI::addConstraint(examplewindow, UI::BACKGROUND_COLOR, "0.3, 0.3, 0.3, 1.0");
-        UI::addConstraint(examplewindow, UI::BORDER, "1.0px, 1.0px, 1.0px, 1.0px");
-        UI::ElementPtr examplewindow2 = UI::addWindowToLayer({400.0f, 800.0f, 0.0f, 300.0f, 300.0f}, 0, "example window 2", platform, uilayer);
-        UI::addConstraint(examplewindow2, UI::BACKGROUND_COLOR, "0.3, 0.3, 0.3, 1.0");
-        UI::addConstraint(examplewindow2, UI::BORDER, "1.0px, 1.0px, 1.0px, 1.0px");
-        */
-
         UI::ElementPtr scenewindow = loadSceneView(stateptr, {0.0f, 1000.0f, 0.0f, 300.0f, 400.0f}, platform);
-        UI::dockWindow(scenewindow, ds, false, 0, uilayer);
-
-        //calculate the element of the window
-        UI::calculateAllElements(stateptr->uilayer);
+        UI::ElementPtr componentwindow = loadComponentView(stateptr, {0.0f, 1000.0f, 0.0f, 300.0f, 400.0f}, platform);
         
+        UI::dockWindow(scenewindow, ds, false, 0, uilayer);
+        UI::dockWindow(componentwindow, ds, true, 1, uilayer);
+        UI::dockWindow(renderwindow, ds, false, 1, uilayer);
+
+        UI::calculateAllElements(*uilayer);
+        UI::addOnResizeEventHandler(renderwindow, framebufferupdate, &stateptr->uilayer);
+
         return true;
     }
 
@@ -272,14 +278,22 @@ namespace IME::Editor
 
         EditorState* stateptr = (EditorState*)platform.appmemory.persistentstorage;
         Scene::SceneData* scene = &stateptr->scene;
+        UI::Layer* uilayer = &stateptr->uilayer;
+
+        UI::ElementPtr renderwindow = UI::getElementByTag("render_window", uilayer);
 
         Event e;
         while(platform.events.pop(&e)) {
             UI::propagateEventToLayer(e, &stateptr->uilayer, platform);
-            Scene::propagateEventToScripts(e, platform, scene);
+
+            if(uilayer->focussedwindow == renderwindow) {
+                Scene::propagateEventToScripts(e, platform, scene);
+            }
         }
 
-        Scene::updateScripts(platform, scene);
+        if(uilayer->focussedwindow == renderwindow) { 
+            Scene::updateScripts(platform, scene);
+        }
 
         platform.gfx.disable(IME_DEPTH_TEST);
 
@@ -292,7 +306,7 @@ namespace IME::Editor
         camera->projection = sceneprojection;
 
         stateptr->renderset.renderqueues.clear();
-        Scene::pushSceneToRenderSet(&stateptr->renderset, &stateptr->scene, view, sceneprojection, stateptr->sceneframebuffer->id, {(uint32)stateptr->colorbuffer->props.width, (uint32)stateptr->colorbuffer->props.height}, platform);
+        Scene::pushSceneToRenderSet(&stateptr->renderset, &stateptr->scene, view, sceneprojection, stateptr->sceneframebuffer, {(uint32)stateptr->colorbuffer->props.width, (uint32)stateptr->colorbuffer->props.height}, platform);
 
         //pushing the ui elements to the renderset and flushing
         UI::pushLayerToRenderSet(stateptr->uilayer, &stateptr->renderset, textprojection, platform);

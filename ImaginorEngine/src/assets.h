@@ -10,7 +10,6 @@
 
 namespace IME::Assets {
 
-
     typedef Data::String<Memory::alloc, Memory::dealloc> String;
 
     template<typename T, sizeptr size>
@@ -54,6 +53,8 @@ namespace IME::Assets {
 
         String vertsrcdirectory;
         String fragsrcdirectory;
+
+        uuid assetid;
     };
 
     struct Mesh {
@@ -65,6 +66,8 @@ namespace IME::Assets {
 
         String srcdirectory;
         String name;
+
+        uuid assetid;
     };
 
     struct Texture {
@@ -73,6 +76,8 @@ namespace IME::Assets {
 
         String srcdirectory;
         String name;
+
+        uuid assetid;
     };
 
     struct FrameBuffer {
@@ -86,6 +91,8 @@ namespace IME::Assets {
         uint32 height;
 
         String name;
+
+        uuid assetid;
     };
 
     struct RenderBuffer {
@@ -95,6 +102,8 @@ namespace IME::Assets {
         uint32 height;
 
         String name;
+
+        uuid assetid;
     };
 
     struct Font {
@@ -116,12 +125,16 @@ namespace IME::Assets {
 
         String srcdirectory;
         String name;
+
+        uuid assetid;
     };
 
     struct UniformBuffer {
         gl_id id;
         sizeptr size;
         String name;
+
+        uuid assetid;
     };
 
     struct Library {

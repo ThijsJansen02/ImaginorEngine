@@ -7,16 +7,44 @@
 
 namespace IME
 {
+    inline bool isDigit(const char* s1) {
+        bool32 comma = false;
+        while(*s1) {
+            if(*s1 == '.') {
+                if(comma) {
+                    return false;
+                } else {
+                    comma = true;
+                    s1++;
+                    continue;
+                }
+            }
+            if(*s1 < '0' || *s1 > '9') {
+                return false;
+            }
+            s1++;
+        }   
+        return true;
+    }
+
     inline bool compareStrings(const char* s1, const char* s2) {
         int32 result = strcmp(s1, s2);
         return !*(bool*)&result;
     }
 
-    inline void int32ToString(char* buffer, uint32 value, sizeptr s) {
+    inline void int32ToString(char* buffer, int32 value, sizeptr s) {
         sprintf_s(buffer, s, "%d", value);
     }
 
-    inline uint32 stringToInt32(const char* string) {
+    inline void uint32ToString(char* buffer, uint32 value, sizeptr s) {
+        sprintf_s(buffer, s, "%u", value);
+    }
+
+    inline int32 stringToInt32(const char* string) {
+        return atoi(string);
+    }
+
+    inline uint32 stringToUint32(const char* string) {
         return atoi(string);
     }
 

@@ -53,7 +53,7 @@ namespace IME::Data {
         ComponentStorage components[n_components];
 
         template<typename Comp1, typename Comp2>
-        void forEachPair(void(* func)(Comp1*, Comp2*, void*), void* userptr) {
+        void forEachPair(void(* func)(Comp1*, Comp2*, Entity, void*), void* userptr) {
 
             ComponentStorage* storage1 = &components[Comp1::comp_index()];
             ComponentStorage* storage2 = &components[Comp2::comp_index()];
@@ -69,12 +69,12 @@ namespace IME::Data {
 
                     ComponentData<Comp2>* current2 = &data2[component2index];
 
-                    func(&current1->component, &current2->component, userptr);
+                    func(&current1->component, &current2->component, current1->entity, userptr);
                 }
             }
         }
 
-        template<typename Comp1, typename Comp2, void(* func)(Comp1*, Comp2*, void*)>
+        template<typename Comp1, typename Comp2, void(* func)(Comp1*, Comp2*, Entity, void*)>
         void forEachPair(void* userptr) {
 
             ComponentStorage* storage1 = &components[Comp1::comp_index()];
@@ -91,7 +91,7 @@ namespace IME::Data {
 
                     ComponentData<Comp2>* current2 = &data2[component2index];
 
-                    func(&current1->component, &current2->component, userptr);
+                    func(&current1->component, &current2->component, current1->entity, userptr);
                 }
             }
         }

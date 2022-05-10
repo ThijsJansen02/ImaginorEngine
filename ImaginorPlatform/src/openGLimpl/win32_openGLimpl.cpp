@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <ImaginorPlatform/src/platform.h>
 
+internal thread_local PFNGLCHECKFRAMEBUFFERSTATUSPROC glCheckFramebufferStatus_;
 internal thread_local PFNGLGENVERTEXARRAYSPROC glGenVertexArrays_;
 internal thread_local PFNGLBINDVERTEXARRAYPROC glBindVertexArray_;
 internal thread_local PFNGLBINDBUFFERPROC glBindBuffer_;
@@ -48,6 +49,9 @@ internal thread_local PFNGLBINDFRAMEBUFFERPROC glBindFramebuffer_;
 internal thread_local PFNGLTEXSTORAGE2DPROC glTexStorage2D_;
 internal thread_local PFNGLFRAMEBUFFERTEXTURE2DPROC glFramebufferTexture2D_;
 internal thread_local PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog_;
+internal thread_local PFNGLCLEARTEXIMAGEPROC glClearTexImage_;
+internal thread_local PFNGLDRAWBUFFERSPROC glDrawBuffers_;
+
 internal thread_local PFNGLDEBUGMESSAGECALLBACKPROC glDebugMessageCallback_;
 
 void
@@ -99,6 +103,9 @@ namespace IME::OpenGL {
         glTexStorage2D_ = (PFNGLTEXSTORAGE2DPROC)wglGetProcAddress("glTexStorage2D");
         glFramebufferTexture2D_ = (PFNGLFRAMEBUFFERTEXTURE2DPROC)wglGetProcAddress("glFramebufferTexture2D"); 
         glGetShaderInfoLog_ = (PFNGLGETSHADERINFOLOGPROC)wglGetProcAddress("glGetShaderInfoLog");
+        glClearTexImage_ = (PFNGLCLEARTEXIMAGEPROC)wglGetProcAddress("glClearTexImage");
+        glCheckFramebufferStatus_ = (PFNGLCHECKFRAMEBUFFERSTATUSPROC)wglGetProcAddress("glCheckFramebufferStatus");
+        glDrawBuffers_ = (PFNGLDRAWBUFFERSPROC)wglGetProcAddress("glDrawBuffers");
 
         glDebugMessageCallback_ = (PFNGLDEBUGMESSAGECALLBACKPROC)wglGetProcAddress("glDebugMessageCallback");
 
@@ -157,6 +164,7 @@ namespace IME::OpenGL {
     };
 
     struct FrameBufferAttachment {
+        gsframebufferattachmenttype attachment;
         bool32 istexture;
         gl_id ptr;
     };
@@ -491,10 +499,10 @@ namespace IME::OpenGL {
         glGetProgramiv_(boundshader->program, GL_LINK_STATUS, &success);
         if(!success)
         {
-            char openglinfolog[512];
-            glGetProgramInfoLog_(boundshader->program, 512, NULL, openglinfolog);
-            char errorlog[512];
-            sprintf_s(errorlog, 512, "shader failed to compile\nmessage: %s", openglinfolog);
+            char openglinfolog[1024];
+            glGetProgramInfoLog_(boundshader->program, 1024, NULL, openglinfolog);
+            char errorlog[1024];
+            sprintf_s(errorlog, 1024, "shader failed to compile\nmessage: %s", openglinfolog);
 
             Event event;
             event.destinations = IME_CONSOLE;
@@ -564,7 +572,7 @@ namespace IME::OpenGL {
         glGenTextures(1, &result.id);
         glBindTexture(GL_TEXTURE_2D, result.id);
 
-        glTexImage2D(GL_TEXTURE_2D, 0, getColorFormat(properties.format), properties.width, properties.height, 0, getColorFormat(srcformat), getDataType(srcdatatype), src);
+        glTexImage2D(GL_TEXTURE_2D, 0, getInternalColorFormat(properties.format), properties.width, properties.height, 0, getColorFormat(srcformat), getDataType(srcdatatype), src);
 
         if(properties.generatemipmaps) {
             glGenerateMipmap_(GL_TEXTURE_2D);
@@ -585,7 +593,7 @@ namespace IME::OpenGL {
 
         Texture* texture = &glstate.textures.data[glstate.boundtexture];
 
-        glTexImage2D(GL_TEXTURE_2D, 0, getColorFormat(properties.format), properties.width, properties.height, 0, getColorFormat(srcformat), getDataType(srcdatatype), src);
+        glTexImage2D(GL_TEXTURE_2D, 0, getInternalColorFormat(properties.format), properties.width, properties.height, 0, getColorFormat(srcformat), getDataType(srcdatatype), src);
 
         if(properties.generatemipmaps) {
             glGenerateMipmap_(GL_TEXTURE_2D);
@@ -608,6 +616,14 @@ namespace IME::OpenGL {
         glBindTexture(GL_TEXTURE_2D, glstate.textures.data[id].id);
     }
 
+    extern "C" IME_GLAPI_TEXTURE_CLEAR(ime_glapi_texture_clear) { //void ime_glapi_texture_clear(IME::byte* clearvalue)
+
+        Texture* t = &glstate.textures.data[texture];
+
+        glClearTexImage_(t->id, 0, getColorFormat(t->props.format), getDataTypeForColorFormat(t->props.format), clearvalue);
+
+    }
+
     extern "C" IME_GLAPI_FBO_CREATE(ime_glapi_fbo_create) { //gl_id ime_glapi_fbo_create(uint32 height, uint32 width)
         IME_DEBUG_ASSERT_BREAK(glstate.inited, "gl is not yet inited!")
         
@@ -617,6 +633,16 @@ namespace IME::OpenGL {
         glBindFramebuffer_(GL_FRAMEBUFFER, framebuffer.id);
         framebuffer.height = height;
         framebuffer.width = width;
+
+        const GLenum buffers[]{ 
+            GL_COLOR_ATTACHMENT0, 
+            GL_COLOR_ATTACHMENT1, 
+            GL_COLOR_ATTACHMENT2, 
+            GL_COLOR_ATTACHMENT3, 
+            GL_COLOR_ATTACHMENT4 
+        };
+        glDrawBuffers_(4, buffers );
+
         glstate.boundfbo = addNewPrimitive(&glstate.fbos, framebuffer);
         return glstate.boundfbo;
     }
@@ -638,19 +664,19 @@ namespace IME::OpenGL {
         if(type >= IME_COLOR_ATTACHMENT0 && type <= IME_COLOR_ATTACHMENT15) {
             glTexImage2D(
                 GL_TEXTURE_2D,                                              //target
-                0,                                                          //level
-                getColorFormat(properties.format),                          //internal format
+                0,                                                        //level
+                getInternalColorFormat(properties.format),                          //internal format
                 framebuffer->width,                                           //width
                 framebuffer->height,                                          //height
-                0,                                                          //border
-                getColorFormat(properties.format),                          //format 
+                0,                                                    //border
+                getColorFormat(properties.format),                         //format 
                 GL_UNSIGNED_BYTE,                                            //type
                 nullptr                                                     //data
             );
         } else {
             glTexStorage2D_(GL_TEXTURE_2D, 
-                1,  
-                getColorFormat(properties.format), 
+                1,
+                getInternalColorFormat(properties.format), 
                 framebuffer->width, 
                 framebuffer->height
             );
@@ -666,13 +692,21 @@ namespace IME::OpenGL {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, getTextureWrap(properties.S));
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, getTextureWrap(properties.T));
 
-        glFramebufferTexture2D_(GL_FRAMEBUFFER, getFrameBufferAttachmentType(type), GL_TEXTURE_2D, result.id, 0);
+        GLenum attachmenttype = getFrameBufferAttachmentType(type);
+
+        glFramebufferTexture2D_(GL_FRAMEBUFFER, attachmenttype, GL_TEXTURE_2D, result.id, 0);
+
+        if(glCheckFramebufferStatus_(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+	        IME_DEBUG_BREAK()
+
+        glBindTexture(GL_TEXTURE_2D, 0);
 
         glstate.boundtexture = addNewPrimitive(&glstate.textures, result);
 
         FrameBufferAttachment attachement;
         attachement.ptr = glstate.boundtexture;
         attachement.istexture = true;
+        attachement.attachment = type;
         framebuffer->attachments.push_back(attachement);
 
         return glstate.boundtexture;
@@ -692,7 +726,7 @@ namespace IME::OpenGL {
 
         glGenRenderbuffers_(1, &result.id);
         glBindRenderbuffer_(GL_RENDERBUFFER, result.id);
-        glRenderbufferStorage_(GL_RENDERBUFFER, getColorFormat(format), framebuffer->width, framebuffer->height);
+        glRenderbufferStorage_(GL_RENDERBUFFER, getInternalColorFormat(format), framebuffer->width, framebuffer->height);
 
         if(format >= 7 && format <= 9) {
             glFramebufferRenderbuffer_(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, result.id);
@@ -738,7 +772,7 @@ namespace IME::OpenGL {
                 glTexImage2D(
                     GL_TEXTURE_2D,                                              //target
                     0,                                                          //level
-                    getColorFormat(textureattachment.props.format),                          //internal format
+                    getInternalColorFormat(textureattachment.props.format),                          //internal format
                     framebuffer->width,                                           //width
                     framebuffer->height,                                          //height
                     0,                                                          //border
@@ -762,6 +796,28 @@ namespace IME::OpenGL {
         glBindRenderbuffer_(GL_RENDERBUFFER, glstate.rbos.data[glstate.boundrbo].id);
 
         return true;
+    }
+
+    extern "C" IME_GLAPI_FBO_READ_PIXELS(ime_glapi_fbo_read_pixels) { //gsframebufferattachmenttype attachment, byte* buffer, sizeptr size, sizeptr* readsize, uint32 x, uint32 y
+        FrameBuffer* framebuffer = &glstate.fbos.data[glstate.boundfbo];
+        
+        gl_id texture;
+        for (auto fbattachment : framebuffer->attachments) {
+            if(fbattachment.istexture) {
+                if(fbattachment.attachment == attachment) {
+                    texture = fbattachment.ptr;
+                }
+            }
+        }
+
+        if(texture == 0) {
+            IME_DEBUG_BREAK()
+        }
+
+        gstextureformat format = glstate.textures.data[texture].props.format;
+
+        glReadBuffer(getFrameBufferAttachmentType(attachment));
+        glReadPixels(x, y, width, height, getColorFormat(format), getDataTypeForColorFormat(format), buffer);
     }
 
     extern "C" IME_GLAPI_FBO_DELETE(ime_glapi_fbo_delete) {
@@ -867,7 +923,9 @@ openGLMessageCallback( GLenum source,
         message
     );
 
-    OutputDebugString(buffer);
+    if(severity == GL_DEBUG_SEVERITY_HIGH) {
+        OutputDebugString(buffer);
+    }
     event.param2 = (IME::uint64)buffer;
 
     user->events->output.push_back(IME::copyEvent(event));

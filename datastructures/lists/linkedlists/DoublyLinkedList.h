@@ -80,22 +80,18 @@ namespace IME::Data {
 		using const_iterator = iterator_L_base_const<Node>;
 
 		void init() {
-			m_Head = nullptr;
-			m_Tail = nullptr;
-
 			m_Count = 0;
 			Node* tail = (Node*)allocator(sizeof(ProxyNode));
-			tail->m_Next = nullptr;
-			tail->m_Prev = nullptr;
-			m_Head = tail;
-			m_Tail = tail;
+			tail->m_Next = tail;
+			tail->m_Prev = tail;
+			m_Start = tail;
 		}
 
-		iterator begin() { return iterator(m_Head); }
-		iterator end() { return iterator(m_Tail); }
+		iterator begin() { return iterator(m_Start->getNext()); }
+		iterator end() { return iterator(m_Start); }
 
-		const_iterator begin() const { return const_iterator(m_Head); }
-		const_iterator end() const { return const_iterator(m_Tail); }
+		const_iterator begin() const { return const_iterator(m_Start->getNext()); }
+		const_iterator end() const { return const_iterator(m_Start); }
 
 		View<iterator> view(uint32_t begin, uint32_t end) {
 
@@ -126,8 +122,6 @@ namespace IME::Data {
 				deallocator(sizeof(Node), begin->getNode());
 				begin++;
 			}
-
-			m_Head = m_Tail;
 		}
 
 		void insert(const T& val, uint32_t index) {
@@ -135,7 +129,7 @@ namespace IME::Data {
 			if (index > m_Count / 2) {
 
 				//std::cout << "used upper it" << std::endl;
-				iterator it = iterator(m_Tail);
+				iterator it = iterator(m_Start);
 				for (int i = m_Count; i > index; i--) {
 					it--;
 				}
@@ -204,8 +198,16 @@ namespace IME::Data {
 			next->m_Prev = prev;
 
 			deallocator(sizeof(Node), (byte*)node);
+			--m_Count;
 		}
 
+		inline ValueType& peak_front() {
+			return m_Start->getNext()->getValue();
+		}
+
+		inline ValueType& peak_back() {
+			return m_Start->getPrev()->getValue();
+		}
 
 		inline void push(const T& val) {
 			push_front(val);
@@ -216,35 +218,31 @@ namespace IME::Data {
 		}
 
 		ValueType pop_front() {
-			ValueType result = m_Head->getValue();
-			m_Head = m_Head->getNext();
-			deallocator(sizeof(Node), m_Head->m_Prev);
-			m_Head->m_Prev = nullptr;
-
+			ValueType result = m_Start->getNext()->getValue();
+			remove(m_Start->getNext());
 			m_Count--;
 			return result;
 		}
 
 		ValueType pop_back() {
 
-			Node* result = m_Tail->getPrev();
-			result->getPrev()->m_Next = m_Tail;
-			m_Tail->m_Prev = result->getPrev();
-
-			ValueType resultval = result->getValue();
-			deallocator(sizeof(Node), result);
-
+			ValueType result = m_Start->getPrev()->getValue();
+			remove(m_Start->getPrev());
 			m_Count--;
-			return resultval;
+			return result;
 		}
 		
 		void push_front(const T& val) {
 
 			Node* newnode = (Node*)allocator(sizeof(Node));
-			*newnode = Node(val, m_Head, nullptr);
-			newnode->m_Next = m_Head;
-			m_Head->m_Prev = newnode;
-			m_Head = newnode;
+			newnode->m_Val = val;
+
+			Node* oldfront = m_Start->getNext();
+			oldfront->m_Prev = newnode;
+			m_Start->m_Next = newnode;
+			newnode->m_Next = oldfront;
+			newnode->m_Prev = m_Start;
+
 			m_Count++;
 			return;
 		}
@@ -252,9 +250,13 @@ namespace IME::Data {
 		void push_back(const T& val) {
 			
 			Node* newnode = (Node*)allocator(sizeof(Node));
-			newnode->m_Next = m_Tail;
-			newnode->m_Prev = m_Tail->m_Prev;
-			m_Tail->m_Prev = newnode;
+			newnode->m_Val = val;
+
+			Node* oldback = m_Start->getNext();
+			oldback->m_Next = newnode;
+			m_Start->m_Prev = newnode;
+			newnode->m_Next = m_Start;
+			newnode->m_Prev = oldback;
 
 			m_Count++;
 			return;
@@ -272,9 +274,7 @@ namespace IME::Data {
 			begin() == end();
 		}
  
-		Node* m_Head;
-		Node* m_Tail;
-
+		Node* m_Start;
 		uint32_t m_Count;
 	};
 

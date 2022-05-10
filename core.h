@@ -47,4 +47,6 @@ namespace IME {
 
 	typedef size_t sizeptr;
 
+	typedef uint64 uuid;
+
 }

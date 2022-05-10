@@ -34,7 +34,15 @@
 			"array": "cpp",
 			"xmemory": "cpp",
 			"queue": "cpp",
-			"charconv": "cpp"
+			"charconv": "cpp",
+			"functional": "cpp",
+			"optional": "cpp",
+			"xlocmon": "cpp",
+			"ios": "cpp",
+			"istream": "cpp",
+			"ostream": "cpp",
+			"iosfwd": "cpp",
+			"xloctime": "cpp"
 		}
 	}
 }

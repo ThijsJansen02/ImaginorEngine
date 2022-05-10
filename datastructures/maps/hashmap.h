@@ -34,28 +34,39 @@ namespace IME::Data {
         KeyValuePair* add(const key& key, const value& value) {
             sizeptr index = hashfunc(key) % mapsize;
             hashtable[index].push_front({key, value});
-            return &hashtable[index].m_Head->getValue();
+            return &hashtable[index].peak_front();
+        }
+
+        bool32 hasKey(const key& key) {
+            sizeptr index = hashfunc(key) % mapsize;
+            DoublyLinkedList_<KeyValuePair, allocator, deallocator>& list = hashtable[index];
+            for(auto node : list) {
+                if(node->getValue().k == key) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         KeyValuePair* get(const key& key) {
             sizeptr index = hashfunc(key) % mapsize;
-            DoublyLinkedList_<KeyValuePair, allocator, deallocator> list = hashtable[index];
+            DoublyLinkedList_<KeyValuePair, allocator, deallocator>& list = hashtable[index];
 
             for(auto node : list) {
                 if(node->getValue().k == key) {
                     return &node->getValue();
                 }
             }
-
             return nullptr;
         }
 
         void removeKey(const key& key) {
             sizeptr index = hashfunc(key) % mapsize;
-            DoublyLinkedList_<KeyValuePair, allocator, deallocator> list = hashtable[index];
+            DoublyLinkedList_<KeyValuePair, allocator, deallocator>& list = hashtable[index];
             for(auto node : list) {
                 if(node->getValue().k == key) {
                     list.remove(node);
+                    return;
                 }
             }
 

@@ -613,12 +613,14 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         rendercommands.texture_create = IME::OpenGL::ime_glapi_texture_create;
         rendercommands.texture_bind = IME::OpenGL::ime_glapi_texture_bind;
         rendercommands.texture_reset = IME::OpenGL::ime_glapi_texture_reset;
+        rendercommands.texture_clear = IME::OpenGL::ime_glapi_texture_clear;
 
         rendercommands.fbo_bind = IME::OpenGL::ime_glapi_fbo_bind;
         rendercommands.fbo_create = IME::OpenGL::ime_glapi_fbo_create;
         rendercommands.fbo_createtextureattachment = IME::OpenGL::ime_glapi_fbo_create_texture_attachment;
         rendercommands.fbo_createrenderbufferattachment = IME::OpenGL::ime_glapi_fbo_create_rbo_attachment;
         rendercommands.fbo_resize = IME::OpenGL::ime_glapi_fbo_resize; 
+        rendercommands.fbo_readpixels = IME::OpenGL::ime_glapi_fbo_read_pixels;
 
         rendercommands.setviewport = IME::OpenGL::ime_glapi_set_viewport;
         rendercommands.clear = IME::OpenGL::ime_glapi_clear;
@@ -627,6 +629,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
         rendercommands.drawarray = IME::OpenGL::ime_glapi_draw_array;
         rendercommands.drawindexed = IME::OpenGL::ime_glapi_draw_indexed;
+
         
         platforminterface.gfx = rendercommands;
 

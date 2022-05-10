@@ -1,12 +1,15 @@
-#version 330 core
+#version 450 core
 
-out vec4 FragColor;  
+layout(location = 0) out vec4 gColor;  
+layout(location = 1) out int gIndex;
 
+flat in uint pIndex;
 in vec2 pTexCoords;
 
 uniform sampler2D textures[32];
 
 void main()
 {  
-    FragColor = texture(textures[0], pTexCoords); //texture(texture0, pTexCoords);
+    gIndex = int(pIndex); //int(pIndex);
+    gColor = texture(textures[0], pTexCoords); //texture(texture0, pTexCoords);
 }

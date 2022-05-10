@@ -205,7 +205,7 @@ namespace IME::Assets {
             return nullptr;
         }
 
-        result.id = platform.gfx.texture_create(result.props, decompressed, result.props.format, IME_UINT8);
+        result.id = platform.gfx.texture_create(result.props, decompressed, result.props.format, IME::IME_UINT8);
         return &library->textures.add(String::create(name), result)->v;
     }
 

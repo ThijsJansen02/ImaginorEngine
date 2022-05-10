@@ -67,6 +67,22 @@
         },
         {
             "type": "shell",
+            "label": "editor build and run",
+            "command": "editorbuild.bat;run.bat",
+            "args": [],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "type": "shell",
+            "label": "opengl test",
+            "command": "opengltestbuild.bat",
+            "args": [],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "type": "shell",
             "label": "testbuild",
             "command": "testbuild.bat",
             "args": [],

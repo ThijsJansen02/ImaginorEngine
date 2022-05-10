@@ -286,7 +286,12 @@ namespace IME::Renderer2D {
         for(int32 i = 0; i < batchrendererdata.storedtextures; i++) {
             batchrendererdata.rendercommands.texture_bind(batchrendererdata.textures[i], i);
         }
+        
         batchrendererdata.rendercommands.drawindexed(IME_TRIANGLES, (batchrendererdata.vertexoffset / 4) * 6);
+
+        for(int32 i = 0; i < batchrendererdata.storedtextures; i++) {
+            batchrendererdata.rendercommands.texture_bind(0, i);
+        }
     }
 
     void flushIntermediate() {

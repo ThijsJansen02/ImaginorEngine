@@ -296,6 +296,7 @@ namespace IME::UI {
         baseregion.topleft = {0.0f, (real32)platform->window.width, -1.0f };
         baseregion.size = { (real32)platform->window.height, (real32)platform->window.width };
         layer.basewindow = addWindowToLayer(baseregion, composingshader, "basewindow", *platform, &layer, NO_TOPBAR | NO_RESIZING | NO_DRAGGING);
+        layer.focussedwindow = layer.basewindow;
 
         return layer;
     }
@@ -320,6 +321,38 @@ namespace IME::UI {
             ptr.data = (void*)p;
             window->children.push_back(ptr);
         }
+        if(parent.type == DIV) {
+            Div* d = (Div*)parent.data;
+            Paragraph* p = (Paragraph*)Memory::alloc(sizeof(Paragraph));
+            *p = result;
+            ptr.data = (void*)p;
+            d->children.push_back(ptr);
+        } 
+        return ptr;
+    }
+
+    ElementPtr addDiv(ElementPtr parent, Layer* uilayer) {
+        Div result;
+        result.children.init(0);
+        result.parameters.elementconstraints.init(0);
+
+        ElementPtr ptr = {nullptr, UI::DIV};
+
+        if(parent.type == WINDOW) {
+
+            Window* window = (Window*)parent.data;
+            Div* d = (Div*)Memory::alloc(sizeof(Paragraph));
+            *d = result;
+            ptr.data = (void*)d;
+            window->children.push_back(ptr);
+        }
+        if(parent.type == DIV) {
+            Div* dp = (Div*)parent.data;
+            Div* d = (Div*)Memory::alloc(sizeof(Paragraph));
+            *d = result;
+            ptr.data = (void*)d;
+            dp->children.push_back(ptr);
+        } 
         return ptr;
     }
 
@@ -340,6 +373,13 @@ namespace IME::UI {
             ptr.data = (void*)i;
             window->children.push_back(ptr);
         }
+        if(parent.type == DIV) {
+            Div* d = (Div*)parent.data;
+            InputField* i = (InputField*)Memory::alloc(sizeof(InputField));
+            *i = result;
+            ptr.data = (void*)i;
+            d->children.push_back(ptr);
+        } 
 
         return ptr;
     }
@@ -359,6 +399,14 @@ namespace IME::UI {
             ptr.data = (void*)i;
             window->children.push_back(ptr);
         }
+
+        if(parent.type == DIV) {
+            Div* d = (Div*)parent.data;
+            Image* im = (Image*)Memory::alloc(sizeof(Paragraph));
+            *im = result;
+            ptr.data = (void*)im;
+            d->children.push_back(ptr);
+        } 
 
         return ptr;
     }
@@ -380,59 +428,23 @@ namespace IME::UI {
             ptr.data = (void*)d;
             w->children.push_back(ptr);
         }
+        if(parent.type == DIV) {
+            Div* d = (Div*)parent.data;
+            DockingSpace* ds = (DockingSpace*)Memory::alloc(sizeof(Paragraph));
+            *ds = result;
+            ptr.data = (void*)ds;
+            d->children.push_back(ptr);
+        } 
 
         uilayer->dockingspaces.push_back(ptr);
 
         return ptr;
     }
 
-    void destroyElementParameters(ElementParameters* p, Layer* layer) {
-        if(p->tag) {
-            layer->tagmap.removeKey(*p->tag);
-        }
-        if(p->elementconstraints.getCapacity() > 0) {
-            p->elementconstraints.destroy();
-        }
-    }
-
-    void destroyDockingSpace(ElementPtr el, Layer* layer) {
-        DockingSpace* d = (DockingSpace*)el.data;
-
-        d->containers.destroy();
-        layer->dockingspaces.remove(el);
-
-        destroyElementParameters(&d->parameters, layer);
-
-        Memory::dealloc(sizeof(DockingSpace), (byte*)el.data);
-    }
-
-    void destroyParagraph(ElementPtr el, Layer* layer) {
-        Paragraph* p = (Paragraph*)el.data;
-
-        p->text.clear();
-        destroyElementParameters(&p->parameters, layer);
-        Memory::dealloc(sizeof(Paragraph), (byte*)el.data);
-    }
-
-    void destroyElement(ElementPtr el, Layer* layer) {
-        switch(el.type) {
-            case DOCKINGSPACE: destroyDockingSpace(el, layer);
-            case PARAGRAPH: destroyParagraph(el, layer);
-        }
-    }
-
-    Region subtractBordersFromRegion(Region region, const vec4f& borders);
-
     ElementPtr addWindowToLayer(Region windowregion, gl_id shader, const char* title, const PlatformInterface& platform, Layer* layer, uint32 flags) {
         Window window;
         window.region = windowregion;
         window.flags = flags;
-
-        /*
-        window.topbarregion = { 0.0f, windowregion.height, 0.0f, windowregion.width, topbarheight};
-        window.parameters.borderregion = {0.0f, windowregion.height - topbarheight, 0.0f, windowregion.width, windowregion.height - topbarheight};
-        window.parameters.contentregion = subtractBordersFromRegion(window.parameters.borderregion, {1.0f, 1.0f, 0.0f, 1.0f});
-        window.parameters.contentregion.z += 0.2f;*/
 
         window.children.init(0);
         window.title.set(title);
@@ -469,6 +481,94 @@ namespace IME::UI {
         return result;
     }
 
+    void destroyElementParameters(ElementParameters* p, Layer* layer) {
+        if(p->tag) {
+            char buffer[256];
+            sprintf_s(buffer, 256, "%s", p->tag->getCstring());
+            layer->tagmap.removeKey(String::createWrapper(buffer));
+        }
+        if(p->elementconstraints.getCapacity() > 0) {
+            p->elementconstraints.destroy();
+        }
+    }
+
+    void destroyDiv(ElementPtr el, Layer* layer) {
+        Div* d = (Div*)el.data;
+
+        destroyChildren(el, layer);
+        destroyElementParameters(&d->parameters, layer);
+        Memory::dealloc(sizeof(Div), (byte*)el.data);
+    }
+
+    void destroyDockingSpace(ElementPtr el, Layer* layer) {
+        DockingSpace* d = (DockingSpace*)el.data;
+
+        for(auto [container, size] : d->containers) {
+            destroyElement(container, layer);
+        }
+
+        if(d->containers.getCapacity() > 0) {
+            d->containers.destroy();
+        }
+        layer->dockingspaces.remove(el);
+
+        destroyElementParameters(&d->parameters, layer);
+
+        Memory::dealloc(sizeof(DockingSpace), (byte*)el.data);
+    }
+
+    void destroyParagraph(ElementPtr el, Layer* layer) {
+        Paragraph* p = (Paragraph*)el.data;
+
+        p->text.clear();
+        destroyElementParameters(&p->parameters, layer);
+        Memory::dealloc(sizeof(Paragraph), (byte*)el.data);
+    }
+
+    void destroyInputField(ElementPtr el, Layer* layer) {
+        InputField* i = (InputField*)el.data;
+        i->text.clear();
+        destroyElementParameters(&i->parameters, layer);
+        Memory::dealloc(sizeof(InputField), (byte*)el.data);
+    }
+
+    void destroyWindow(ElementPtr el, Layer* layer) {
+        Window* w = (Window*)el.data;
+        destroyChildren(el, layer);
+
+        destroyElementParameters(&w->parameters, layer);
+        Memory::dealloc(sizeof(Window), (byte*)el.data);
+    }
+
+    void destroyElement(ElementPtr el, Layer* layer) {
+        switch(el.type) {
+            case DOCKINGSPACE: destroyDockingSpace(el, layer); break;
+            case PARAGRAPH: destroyParagraph(el, layer); break;
+            case INPUTFIELD: destroyInputField(el, layer); break;
+            case DIV: destroyDiv(el, layer); break;
+        }
+    }
+
+    void destroyChildren(ElementPtr el, Layer* layer) {
+        if(el.type == WINDOW) {
+            Window* w = (Window*)el.data;
+            for(ElementPtr child : w->children) {
+                destroyElement(child, layer);
+            }
+            w->children.clear();
+        }
+        if(el.type == DIV) {
+            Div* d = (Div*)el.data;
+            for(ElementPtr child : d->children) {
+                destroyElement(child, layer);
+            }
+            d->children.clear();
+        }
+    }
+
+    Region subtractBordersFromRegion(Region region, const vec4f& borders);
+
+
     bool32 addOnClickEventHandler(ElementPtr element, on_mouse_click* handler, Layer* uilayer) {
         ((ElementParameters*)element.data)->onmouseclick = handler;
         return true;
@@ -477,6 +577,14 @@ namespace IME::UI {
     bool32 addOnResizeEventHandler(ElementPtr element, on_resize* handler, Layer* uilayer) {
         ((ElementParameters*)element.data)->onresize = handler;
         return true;
+    }
+
+    bool32 addOnInputEventHandler(ElementPtr element, on_input* handler, Layer* uilayer) {
+        switch (element.type)
+        {
+        case UI::INPUTFIELD: ((InputField*)element.data)->oninput = handler; return true;
+        default: return false;
+        }
     }
 
     void dockWindow(ElementPtr window, ElementPtr dockingspace, bool horizontal, uint32 index, UI::Layer* uilayer) {
@@ -719,12 +827,22 @@ namespace IME::UI {
         Region result;
          if(constraints.floattype == UNSET) {
             result = subtractBordersFromRegion(subtractBordersFromRegion(subtractBordersFromRegion(constraints.region, constraints.margin), constraints.border), constraints.padding);
-        }
-        if(constraints.floattype == LEFT) {
+        } else if(constraints.floattype == LEFT) {
             if(constraints.floatingregion.width <= constraints.availablefloatingregion.width) {
-                result = subtractBordersFromRegion(subtractBordersFromRegion(constraints.floatingregion, constraints.margin), constraints.padding);
+                result = subtractBordersFromRegion(subtractBordersFromRegion(subtractBordersFromRegion(constraints.floatingregion, constraints.margin), constraints.border), constraints.padding);
             } else {
-                result = subtractBordersFromRegion(subtractBordersFromRegion(constraints.region, constraints.margin), constraints.padding);
+                result = subtractBordersFromRegion(subtractBordersFromRegion(subtractBordersFromRegion(constraints.region, constraints.margin), constraints.border), constraints.padding);
+            }
+        } else if(constraints.floattype == RIGHT) {
+            if(constraints.floatingregion.width <= constraints.availablefloatingregion.width) {
+                Region floatingregion = constraints.floatingregion;
+                floatingregion.x += constraints.availablefloatingregion.width - floatingregion.width;
+
+                result = subtractBordersFromRegion(subtractBordersFromRegion(subtractBordersFromRegion(floatingregion, constraints.margin), constraints.border), constraints.padding);
+            } else {
+                Region region = constraints.region;
+                region.x += constraints.availableregion.width - constraints.region.width;
+                result = subtractBordersFromRegion(subtractBordersFromRegion(subtractBordersFromRegion(region, constraints.margin), constraints.border), constraints.padding);
             }
         }
         return result;
@@ -741,11 +859,35 @@ namespace IME::UI {
         parameters->marginregion = addBordersToRegion(parameters->borderregion, constraints.margin);
     }
 
+    void offsetElement(ElementPtr element, real32 x, real32 y) {
+        if(element.type == DIV) {
+            Div* d = (Div*)element.data;
+            for(ElementPtr c : d->children) {
+                offsetElement(c, x, y);
+            }
+        }
+        ((ElementParameters*)element.data)->backgroundregion.x += x;
+        ((ElementParameters*)element.data)->backgroundregion.y += y;
+
+        ((ElementParameters*)element.data)->borderregion.x += x;
+        ((ElementParameters*)element.data)->borderregion.y += y;
+
+        ((ElementParameters*)element.data)->contentregion.x += x;
+        ((ElementParameters*)element.data)->contentregion.y += y;
+
+        ((ElementParameters*)element.data)->parentcache.availablefloatingregion.x += x;
+        ((ElementParameters*)element.data)->parentcache.availablefloatingregion.y += y;
+
+        ((ElementParameters*)element.data)->parentcache.availableregion.x += x;
+        ((ElementParameters*)element.data)->parentcache.availableregion.y += y;
+    } 
+
     inline Region 
     calculateWindowParameters(ElementPtr ptr, ElementConstraints parentinfo, const Layer& uilayer) {
 
         Window* window = (Window*)ptr.data;
         Region windowregion = window->region;
+        window->parameters.parentcache = parentinfo;
 
         if(window->isdocked) {
             window->region = parentinfo.availableregion;
@@ -797,12 +939,39 @@ namespace IME::UI {
                     parentinfo.availablefloatingregion = parentinfo.availableregion;
                 }
 
+            } if(toVec2(childregion.topleft) + vec2f{childregion.width, 0.0f} == toVec2(parentinfo.availablefloatingregion.topleft) + vec2f{parentinfo.availablefloatingregion.width, 0.0f}) {
+                
+                parentinfo.availablefloatingregion.width -= childregion.width;
+
+                real32 y = minReal32(parentinfo.availableregion.y, childregion.y - childregion.height);
+
+                parentinfo.availableregion.height -= parentinfo.availableregion.y - y;
+                parentinfo.availableregion.y = y;
+
+                if(parentinfo.availablefloatingregion.width <= 0.0f) {
+                    parentinfo.availablefloatingregion = parentinfo.availableregion;
+                }
+
             } else if(toVec2(childregion.topleft) == toVec2(parentinfo.availableregion.topleft)) {
 
                 parentinfo.availableregion.y = childregion.y - childregion.height;
                 parentinfo.availableregion.height -= childregion.height;
 
                 parentinfo.availablefloatingregion.x = childregion.x + childregion.width;
+                parentinfo.availablefloatingregion.y = childregion.y;
+                parentinfo.availablefloatingregion.width = parentinfo.availableregion.width - childregion.width;
+                parentinfo.availablefloatingregion.height = parentinfo.availableregion.height;
+                parentinfo.availablefloatingregion.z = parentinfo.availableregion.z;
+
+                if(parentinfo.availablefloatingregion.width <= 0.0f) {
+                    parentinfo.availablefloatingregion = parentinfo.availableregion;
+                }
+            } else if(toVec2(childregion.topleft) + vec2f{childregion.width, 0.0f} == toVec2(parentinfo.availableregion.topleft) + vec2f{parentinfo.availableregion.width, 0.0f}) {
+
+                parentinfo.availableregion.y = childregion.y - childregion.height;
+                parentinfo.availableregion.height -= childregion.height;
+
+                parentinfo.availablefloatingregion.x = 0.0f;
                 parentinfo.availablefloatingregion.y = childregion.y;
                 parentinfo.availablefloatingregion.width = parentinfo.availableregion.width - childregion.width;
                 parentinfo.availablefloatingregion.height = parentinfo.availableregion.height;
@@ -885,7 +1054,6 @@ namespace IME::UI {
         //determine contentregion;
         paragraph->parameters.contentregion = calcvailableContentRegion(constraints);
 
-
         //push the font to the layer
         paragraph->textcolor = constraints.textcolor;
         paragraph->textsize = constraints.textsize;
@@ -893,6 +1061,9 @@ namespace IME::UI {
         vec2f size = calcTextSizeFromFont(paragraph->text.getCstring(), paragraph->parameters.contentregion.width, 0.0f, scalefactor, *uilayer.basefont);
 
         if(!constraints.editedwidth) {
+            if(constraints.floattype == RIGHT) {
+                paragraph->parameters.contentregion.x += (paragraph->parameters.contentregion.width - size.width);
+            }
             paragraph->parameters.contentregion.width = size.width;
         }
         if(!constraints.editedheight) {
@@ -921,6 +1092,9 @@ namespace IME::UI {
         f->textcolor = constraints.textcolor;
 
         if(!constraints.editedwidth) {
+            if(constraints.floattype == RIGHT) {
+                f->parameters.contentregion.x += (f->parameters.contentregion.width - 200.0f);
+            }
             f->parameters.contentregion.width = 200.0f;
         }
         if(!constraints.editedheight) {
@@ -929,6 +1103,105 @@ namespace IME::UI {
 
         calcRegions(&f->parameters, constraints);
         return f->parameters.marginregion;
+    }
+
+    inline Region calculateDivParameters(ElementPtr ptr, ElementConstraints parentinfo, const Layer& uilayer) {
+        Div* d = (Div*)ptr.data;
+
+        d->parameters.parentcache = parentinfo;
+        ElementConstraints constraints = determineElementConstraints(parentinfo, d->parameters.elementconstraints);
+
+        //determine contentregion;
+        d->parameters.contentregion = calcvailableContentRegion(constraints);
+
+        parentinfo.availableregion = d->parameters.contentregion;
+        parentinfo.availableregion.z += 1;
+        parentinfo.availablefloatingregion = parentinfo.availableregion;
+
+        real32 maxwidth = 0;
+
+        for (ElementPtr ptr : d->children) {
+
+            Region childregion = calculateElementParameters(ptr, parentinfo, uilayer);
+
+            maxwidth = maxReal32(maxwidth, childregion.x - d->parameters.contentregion.x + childregion.width);
+
+            if(toVec2(childregion.topleft) == toVec2(parentinfo.availablefloatingregion.topleft)) {
+                parentinfo.availablefloatingregion.x = childregion.x + childregion.width;
+                parentinfo.availablefloatingregion.width -= childregion.width;
+
+                real32 y = minReal32(parentinfo.availableregion.y, childregion.y - childregion.height);
+
+                parentinfo.availableregion.height -= parentinfo.availableregion.y - y;
+                parentinfo.availableregion.y = y;
+
+                if(parentinfo.availablefloatingregion.width <= 0.0f) {
+                    parentinfo.availablefloatingregion = parentinfo.availableregion;
+                }
+
+            } if(toVec2(childregion.topleft) + vec2f{childregion.width, 0.0f} == toVec2(parentinfo.availablefloatingregion.topleft) + vec2f{parentinfo.availablefloatingregion.width, 0.0f}) {
+                
+                parentinfo.availablefloatingregion.width -= childregion.width;
+
+                real32 y = minReal32(parentinfo.availableregion.y, childregion.y - childregion.height);
+
+                parentinfo.availableregion.height -= parentinfo.availableregion.y - y;
+                parentinfo.availableregion.y = y;
+
+                if(parentinfo.availablefloatingregion.width <= 0.0f) {
+                    parentinfo.availablefloatingregion = parentinfo.availableregion;
+                }
+
+            } else if(toVec2(childregion.topleft) == toVec2(parentinfo.availableregion.topleft)) {
+
+                parentinfo.availableregion.y = childregion.y - childregion.height;
+                parentinfo.availableregion.height -= childregion.height;
+
+                parentinfo.availablefloatingregion.x = childregion.x + childregion.width;
+                parentinfo.availablefloatingregion.y = childregion.y;
+                parentinfo.availablefloatingregion.width = parentinfo.availableregion.width - childregion.width;
+                parentinfo.availablefloatingregion.height = parentinfo.availableregion.height;
+                parentinfo.availablefloatingregion.z = parentinfo.availableregion.z;
+
+                if(parentinfo.availablefloatingregion.width <= 0.0f) {
+                    parentinfo.availablefloatingregion = parentinfo.availableregion;
+                }
+            } else if(toVec2(childregion.topleft) + vec2f{childregion.width, 0.0f} == toVec2(parentinfo.availableregion.topleft) + vec2f{parentinfo.availableregion.width, 0.0f}) {
+
+                parentinfo.availableregion.y = childregion.y - childregion.height;
+                parentinfo.availableregion.height -= childregion.height;
+
+                parentinfo.availablefloatingregion.x = 0.0f;
+                parentinfo.availablefloatingregion.y = childregion.y;
+                parentinfo.availablefloatingregion.width = parentinfo.availableregion.width - childregion.width;
+                parentinfo.availablefloatingregion.height = parentinfo.availableregion.height;
+                parentinfo.availablefloatingregion.z = parentinfo.availableregion.z;
+
+                if(parentinfo.availablefloatingregion.width <= 0.0f) {
+                    parentinfo.availablefloatingregion = parentinfo.availableregion;
+                }
+            }
+        }        
+
+        if(!constraints.editedwidth) {
+            if(constraints.floattype == RIGHT) {
+
+                real32 offset = (d->parameters.contentregion.width - maxwidth);
+                d->parameters.contentregion.x += offset;
+                d->parameters.contentregion.width = maxwidth;
+                for(auto c : d->children) {
+                    offsetElement(c, offset, 0.0f);
+                }
+            } else {
+                d->parameters.contentregion.width = maxwidth;
+            }
+        }
+        if(!constraints.editedheight) {
+            d->parameters.contentregion.height = d->parameters.contentregion.y - parentinfo.availableregion.y;
+        }
+
+        calcRegions(&d->parameters, constraints);
+        return d->parameters.marginregion;
     }
 
     inline Region calculateImageParameters(ElementPtr ptr, const ElementConstraints& parentinfo, const Layer& uilayer) {
@@ -942,6 +1215,9 @@ namespace IME::UI {
         im->parameters.contentregion = calcvailableContentRegion(constraints);
 
         if(!constraints.editedwidth) {
+            if(constraints.floattype == RIGHT) {
+                im->parameters.contentregion.x += (im->parameters.contentregion.width - (real32)im->texture->props.width);
+            }
             im->parameters.contentregion.width = (real32)im->texture->props.width;
         }
         if(!constraints.editedheight) {
@@ -953,15 +1229,16 @@ namespace IME::UI {
     }
 
     void addTag(ElementPtr element, const char* tag, Layer* layer) {
-        auto keyvalue = layer->tagmap.add(String::create(tag), element);
-        ((ElementParameters*)element.data)->tag = &keyvalue->k;
+        if(!layer->tagmap.hasKey(String::createWrapper((char*)tag))) {
+            auto keyvalue = layer->tagmap.add(String::create(tag), element);
+            ((ElementParameters*)element.data)->tag = &keyvalue->k;
+        } else {
+            IME_DEBUG_BREAK()
+        }
     }
 
     ElementPtr getElementByTag(const char* tag, Layer* layer) {
-        String string;
-        string.set(tag); 
-        ElementPtr el = layer->tagmap.get(string)->v;
-        string.clear();
+        ElementPtr el = layer->tagmap.get(String::createWrapper((char*)tag))->v;
         return el;
     }
 
@@ -973,8 +1250,21 @@ namespace IME::UI {
         if(ptr.type == UI::INPUTFIELD) { return calculateInputFieldParameters(ptr, parentinfo, uilayer); }
         if(ptr.type == UI::IMAGE) { return calculateImageParameters(ptr, parentinfo, uilayer); }
         if(ptr.type == UI::DOCKINGSPACE) { return calculateDockingSpaceParameters(ptr, parentinfo, uilayer); }
+        if(ptr.type == UI::DIV) { return calculateDivParameters(ptr, parentinfo, uilayer); }
         return parentinfo.availableregion;
     }
+
+    Region calculateElementParameters(ElementPtr el, Layer* layer) {
+        return calculateElementParameters(el, ((UI::ElementParameters*)el.data)->parentcache, *layer);
+    }
+
+    void 
+    pushElementToRenderQueue(
+            ElementPtr ptr, 
+            Arraylist<Rendering::SimpleQuadCommand>* quadrq, 
+            Arraylist<Rendering::SimpleQuadCommand>* quadrqt, 
+            const Layer& layer
+    );
 
     inline void 
     pushParagraphToRenderQueue(
@@ -1036,6 +1326,27 @@ namespace IME::UI {
         }
         if(f.parameters.backgroundcolor.w > 0.0f) {
             pushRegionToRQ(f.parameters.backgroundregion, f.parameters.backgroundcolor, uilayer.composingshader, quadrq);
+        }
+    }
+
+    inline void
+    pushDivToRenderQueue(
+            ElementPtr ptr, 
+            Arraylist<Rendering::SimpleQuadCommand>* quadrq, 
+            Arraylist<Rendering::SimpleQuadCommand>* quadrqt, 
+            const Layer& layer) {
+
+        Div* e = (Div*)ptr.data;
+        
+        if(e->parameters.bordercolor.w > 0.0f) {
+            pushRegionToRQ(e->parameters.borderregion, e->parameters.bordercolor, layer.composingshader, quadrq);
+        }
+        if(e->parameters.backgroundcolor.w > 0.0f) {
+            pushRegionToRQ(e->parameters.backgroundregion, e->parameters.backgroundcolor, layer.composingshader, quadrq);
+        }
+
+        for(ElementPtr child : e->children) {
+            pushElementToRenderQueue(child, quadrq, quadrqt, layer);
         }
     }
 
@@ -1132,10 +1443,11 @@ namespace IME::UI {
         if(ptr.type == UI::INPUTFIELD) { return pushInputFieldToRenderQueue(ptr, quadrq, quadrqt, layer);}
         if(ptr.type == UI::IMAGE) { return pushImageToRenderQueue(ptr, quadrq, quadrqt, layer);}
         if(ptr.type == UI::DOCKINGSPACE) { return pushDockingSpaceToRenderQueue(ptr, quadrq, quadrqt, layer); }
+        if(ptr.type == UI::DIV) { return pushDivToRenderQueue(ptr, quadrq, quadrqt, layer); }
     }
 
     void calculateElementsForWindow(ElementPtr window, const Layer& layer) {
-        ElementConstraints constraints;
+        ElementConstraints constraints = ((Window*)window.data)->parameters.parentcache;
         calculateElementParameters(window, constraints, layer);
     }
 
@@ -1426,6 +1738,7 @@ namespace IME::UI {
             return {false, false};
         }
     }
+    eventresult elementOnMouseClickEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform);
 
     eventresult inputFielOnClickEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform) {
         InputField* f = (InputField*)element.data;
@@ -1475,7 +1788,22 @@ namespace IME::UI {
         return {false, false};
     }
 
-    eventresult elementOnMouseClickEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform);
+    eventresult divOnClickEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform) {
+
+        Div* d = (Div*)element.data;
+
+        eventresult result = {false, false}; 
+
+        if(isPointInRegion(relativemousepos, d->parameters.contentregion)) {
+            for(ElementPtr c : d->children) {
+                result = result | elementOnMouseClickEvent(c, e, relativemousepos, layer, platform);
+                if(result.v1) {
+                    return result;
+                }
+            }
+        }
+        return result;
+    }
 
     eventresult paragraphOnClickEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform) {
         Paragraph* p = (Paragraph*)element.data;
@@ -1484,7 +1812,12 @@ namespace IME::UI {
 
         if(isPointInRegion(relativemousepos, p->parameters.backgroundregion)) {
             if(p->parameters.onmouseclick) {
-                eventresult result = p->parameters.onmouseclick(element, e, layer, platform);
+
+                vec2f newrelativemousepos = relativemousepos;
+                newrelativemousepos.x += p->parameters.contentregion.x;
+                newrelativemousepos.y += (p->parameters.contentregion.y - p->parameters.contentregion.height);
+
+                eventresult result = p->parameters.onmouseclick(element, newrelativemousepos, e, layer, platform);
                 Region oldregion = p->parameters.marginregion;
                 if(result.v2 == true) {
                     Region newregion = calculateParagraphParameters(element, p->parameters.parentcache, *layer);
@@ -1502,19 +1835,24 @@ namespace IME::UI {
 
     eventresult windowOnClickEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform) {
 
+        Window* window = (Window*)element.data;
         uint32 index = 0;
         bool32 recalculate = false;
+        bool32 ishandled = false;   
+
+        vec2f mousepos = relativemousepos;
+        bool isinregion = isPointInRegion(mousepos, window->region);
+        if(isinregion) {
+            layer->focussedwindow = element;
+        }
 
         if(e.param1 == IME_LEFT_MB) {
-            bool32 ishandled = false;   
-            Window* window = (Window*)element.data;
-            vec2f mousepos = relativemousepos;
 
             Region windowregion = window->region;
             vec2f bottomcorner = {windowregion.x + windowregion.width, windowregion.y - windowregion.height};
             
             //push onclick event to children
-            if(isPointInRegion(mousepos, window->region)) {
+            if(isinregion) {
                 if(element.data != layer->basewindow.data && !window->isdocked) {
                     layer->windoworder.remove(element);
                     layer->windoworder.push_back(element);
@@ -1546,49 +1884,45 @@ namespace IME::UI {
                         return {true, false};
                     }
                 }
+                ishandled = true;
+            }
+
+            if(!(window->flags & NO_RESIZING)) {
+                //check if start with window resizing
+                real32 clickingbounds = 20.0;
+                Region clinckingregion = { 
+                    bottomcorner.x - clickingbounds / 2.0f, 
+                    bottomcorner.y + clickingbounds / 2.0f,
+                    0.0f,
+                    bottomcorner.width = clickingbounds,
+                    bottomcorner.height = clickingbounds
+                };
                 
-                vec2f relativemousepos = mousepos - (toVec2(window->region.topleft) - vec2f{0.0f, window->region.height}); 
-                for(ElementPtr child : window->children) {
-                    auto[ishandled_, recalculate_] = elementOnMouseClickEvent(child, e, relativemousepos, layer, platform);
-
-                    if(recalculate_) {
-                        Region oldregion = ((ElementParameters*)child.data)->marginregion;
-                        if(calculateElementParameters(child, ((ElementParameters*)child.data)->parentcache, *layer) != oldregion) {
-                            recalculate = true;
-                        }
-                    }
-
-                    if(ishandled_) {
-                        return {true, recalculate};
-                    }
+                ////set check if starting with resizing
+                if(isPointInRegion(mousepos, clinckingregion)) {
+                    layer->elementresizing = true;
+                    layer->editedelement = element;
+                    ishandled = true;
                 }
-            
-                ishandled = true;
-            }
-
-            if(window->flags & NO_RESIZING) {
-                return {ishandled, recalculate};
             }
             
-            //check if start with window resizing
-            real32 clickingbounds = 20.0;
-            Region clinckingregion = { 
-                bottomcorner.x - clickingbounds / 2.0f, 
-                bottomcorner.y + clickingbounds / 2.0f,
-                0.0f,
-                bottomcorner.width = clickingbounds,
-                bottomcorner.height = clickingbounds
-            };
-            
-            ////set check if starting with resizing
-            if(isPointInRegion(mousepos, clinckingregion)) {
-                layer->elementresizing = true;
-                layer->editedelement = element;
-                ishandled = true;
-            }
-            
-            return {ishandled, recalculate};
         }
+
+        vec2f newrelativemousepos = mousepos - (toVec2(window->region.topleft) - vec2f{0.0f, window->region.height}); 
+        for(ElementPtr child : window->children) {
+            auto[ishandled_, recalculate_] = elementOnMouseClickEvent(child, e, newrelativemousepos, layer, platform);
+            if(recalculate_) {
+                Region oldregion = ((ElementParameters*)child.data)->marginregion;
+                if(calculateElementParameters(child, ((ElementParameters*)child.data)->parentcache, *layer) != oldregion) {
+                    recalculate = true;
+                }
+            }
+            if(ishandled_) {
+                return {true, recalculate};
+            }
+        }
+
+        return {ishandled, recalculate};
     }
 
     eventresult dockingspaceOnClickEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform) {
@@ -1652,12 +1986,29 @@ namespace IME::UI {
         return {false, false};
     }
 
+    eventresult imageOnMouseClickEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform) {
+        Image* i = (Image*)element.data;
+
+        if(isPointInRegion(relativemousepos, i->parameters.borderregion)) {
+            if(i->parameters.onmouseclick) {
+                vec2f newrelativemousepos = relativemousepos;
+                newrelativemousepos.x += i->parameters.contentregion.x;
+                newrelativemousepos.y += i->parameters.contentregion.y - i->parameters.contentregion.height;
+                return i->parameters.onmouseclick(element, newrelativemousepos, e, layer, platform);
+            }
+        }
+
+        return {false, false};
+    }
+
     eventresult elementOnMouseClickEvent(ElementPtr element, Event e, vec2f relativemousepos, Layer* layer, const PlatformInterface& platform) {
         switch (element.type) {
             case PARAGRAPH: return paragraphOnClickEvent(element, e, relativemousepos, layer, platform); 
             case INPUTFIELD: return inputFielOnClickEvent(element, e, relativemousepos, layer, platform); 
             case DOCKINGSPACE: return dockingspaceOnClickEvent(element, e, relativemousepos, layer, platform);
             case WINDOW: return windowOnClickEvent(element, e, relativemousepos, layer, platform);
+            case DIV: return divOnClickEvent(element, e, relativemousepos, layer, platform);
+            case IMAGE: return imageOnMouseClickEvent(element, e, relativemousepos, layer, platform);
             default: return {false, false};
         }
     }
@@ -1760,22 +2111,18 @@ namespace IME::UI {
         
         if(e.type == EventType::IME_MOUSE_BUTTON_PRESSED) {
 
-            if(e.param1 == IME_LEFT_MB) {
-                //edit inputfield
-
-                if(layer->editinginputfield) {
-                    InputField *f = (InputField*)layer->focussedinput.data;
-                    f->recievesinput = false;
-                }
-
-                layer->focussedinput = {0, NONE};
-                layer->editedelement = {0, NONE};
-
-                layer->elementresizing = false;
-                layer->elementgrabbing = false;
-                layer->editinginputfield = false;
-                layer->resizingdockedcontainer = false;
+            //edit inputfield
+            if(layer->editinginputfield) {
+                InputField *f = (InputField*)layer->focussedinput.data;
+                f->recievesinput = false;
             }
+            
+            layer->focussedinput = {0, NONE};
+            layer->editedelement = {0, NONE};
+            layer->elementresizing = false;
+            layer->elementgrabbing = false;
+            layer->editinginputfield = false;
+            layer->resizingdockedcontainer = false;
 
             for(int32 i = layer->windoworder.getCount() - 1; i >= 0; i--) {
                 
@@ -1874,6 +2221,11 @@ namespace IME::UI {
                 if(f->origin < 0.0f) {
                     f->origin = 0.0f;
                 }
+                
+                if(f->oninput) {
+                    f->oninput(layer->focussedinput, e, layer, platform);
+                }
+
                 calculateInputFieldParameters(layer->focussedinput, f->parameters.parentcache, *layer);
             }
         }

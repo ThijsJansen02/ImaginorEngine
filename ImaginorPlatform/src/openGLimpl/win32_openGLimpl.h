@@ -34,10 +34,12 @@ namespace IME::OpenGL {
     extern "C" IME_GLAPI_FBO_CREATE_RBO_ATTACHMENT(ime_glapi_fbo_create_rbo_attachment);
     extern "C" IME_GLAPI_FBO_RESIZE(ime_glapi_fbo_resize);
     extern "C" IME_GLAPI_FBO_DELETE(ime_glapi_fbo_delete);
+    extern "C" IME_GLAPI_FBO_READ_PIXELS(ime_glapi_fbo_read_pixels);
 
     extern "C" IME_GLAPI_TEXTURE_CREATE(ime_glapi_texture_create);
     extern "C" IME_GLAPI_TEXTURE_BIND(ime_glapi_texture_bind);
     extern "C" IME_GLAPI_TEXTURE_RESET(ime_glapi_texture_reset);
+    extern "C" IME_GLAPI_TEXTURE_CLEAR(ime_glapi_texture_clear);
 
     extern "C" IME_GLAPI_ENABLE(ime_glapi_enable);
     extern "C" IME_GLAPI_DISABLE(ime_glapi_disable);

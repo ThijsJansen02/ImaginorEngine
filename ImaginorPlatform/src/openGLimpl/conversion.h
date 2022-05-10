@@ -90,7 +90,7 @@ namespace IME::OpenGL {
         return glshadertypes[programtype];
     }
 
-    global_var int32 glcolorformats[] = {
+    global_var GLenum glcolorformats[] = {
         GL_RED,
         GL_GREEN, 
         GL_BLUE, 
@@ -98,18 +98,62 @@ namespace IME::OpenGL {
         GL_RG,
         GL_RGB,
         GL_RGBA,
-        GL_DEPTH_COMPONENT16,
-        GL_DEPTH_COMPONENT24,
-        GL_DEPTH_COMPONENT32,
-        GL_DEPTH24_STENCIL8
+        GL_DEPTH_COMPONENT,
+        GL_DEPTH_COMPONENT,
+        GL_DEPTH_COMPONENT,
+        GL_DEPTH_STENCIL,
+        GL_RED_INTEGER,
+        GL_RED_INTEGER
     };
 
-    int32 getColorFormat(gstextureformat format) {
-        int32 result = glcolorformats[format];
+    GLenum 
+    getColorFormat(gstextureformat format) {
+        GLenum result = glcolorformats[format];
         return result;
     }
 
-     int32 gltexturewraps[] = { 
+    global_var GLint glinternalcolorformats[] = {
+        GL_RED,
+        GL_GREEN, 
+        GL_BLUE,
+        GL_ALPHA,
+        GL_RG8,
+        GL_RGB8,
+        GL_RGBA8,
+        GL_DEPTH_COMPONENT16,
+        GL_DEPTH_COMPONENT24,
+        GL_DEPTH_COMPONENT32,
+        GL_DEPTH24_STENCIL8,
+        GL_R32I,
+        GL_R32UI
+    };
+
+    GLint getInternalColorFormat(gstextureformat format) {
+        GLint result = glinternalcolorformats[format];
+        return result;
+    }
+
+    global_var GLenum glcolordatatypes[] = {
+        GL_UNSIGNED_BYTE,
+        GL_UNSIGNED_BYTE, 
+        GL_UNSIGNED_BYTE,
+        GL_UNSIGNED_BYTE,
+        GL_UNSIGNED_BYTE,
+        GL_UNSIGNED_BYTE,
+        GL_UNSIGNED_BYTE,
+        GL_UNSIGNED_INT,
+        GL_UNSIGNED_INT,
+        GL_UNSIGNED_INT,
+        GL_UNSIGNED_INT,
+        GL_INT,
+        GL_UNSIGNED_INT
+    };
+
+    GLenum getDataTypeForColorFormat(gstextureformat format) {
+        return glcolordatatypes[format];
+    }
+
+    uint32 gltexturewraps[] = { 
         GL_REPEAT,
         GL_MIRRORED_REPEAT,
         GL_CLAMP_TO_EDGE,
@@ -133,7 +177,7 @@ namespace IME::OpenGL {
         return gltexturefiltering[filtering];
     }
 
-    int32 framebufferattachmenttypes[] = {
+    GLenum framebufferattachmenttypes[] = {
         GL_COLOR_ATTACHMENT0,
         GL_COLOR_ATTACHMENT1,
         GL_COLOR_ATTACHMENT2,
@@ -155,7 +199,7 @@ namespace IME::OpenGL {
         GL_DEPTH_STENCIL_ATTACHMENT
     };
 
-    int32 getFrameBufferAttachmentType(gsframebufferattachmenttype type) {
+    GLenum getFrameBufferAttachmentType(gsframebufferattachmenttype type) {
         return framebufferattachmenttypes[type];
     }
 
@@ -172,7 +216,8 @@ namespace IME::OpenGL {
 
     int32 operations[] = {
         GL_DEPTH_TEST,
-        GL_STENCIL_TEST
+        GL_STENCIL_TEST,
+        GL_BLEND
     };
 
     int32 convertOperation(operation op) {

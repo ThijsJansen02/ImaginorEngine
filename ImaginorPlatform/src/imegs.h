@@ -7,7 +7,8 @@ namespace IME {
 
     enum operation : int32 {
         IME_DEPTH_TEST,
-        IME_STENCIL_TEST
+        IME_STENCIL_TEST,
+        IME_BLEND
     };
 
     enum clearbuffer : int32 {
@@ -57,7 +58,9 @@ namespace IME {
         IME_DEPTH_COMPONENT16,
         IME_DEPTH_COMPONENT24,
         IME_DEPTH_COMPONENT32,
-        IME_DEPTH24_STENCIL8
+        IME_DEPTH24_STENCIL8,
+        IME_RED_INT32,
+        IME_RED_UINT32
     };
 
     /*
@@ -171,6 +174,7 @@ namespace IME {
     #define IME_GLAPI_FBO_CREATE_RBO_ATTACHMENT(name) gl_id name(gstextureformat format)
     #define IME_GLAPI_FBO_RESIZE(name) bool32 name(uint32 newwidth, uint32 newheight)
     #define IME_GLAPI_FBO_DELETE(name) bool32 name(gl_id, bool32 deleteattachments)
+    #define IME_GLAPI_FBO_READ_PIXELS(name) void name(gsframebufferattachmenttype attachment, byte* buffer, sizeptr size, sizeptr* readsize, uint32 x, uint32 y, uint32 width, uint32 height)
 
     //drawing
     #define IME_GLAPI_DRAW_ARRAY(name) void name(gsdrawmode mode, sizeptr count)
@@ -195,6 +199,8 @@ namespace IME {
     #define IME_GLAPI_TEXTURE_CREATE(name) gl_id name(TextureProperties properties, byte* src, gstextureformat srcformat, gsdatatype srcdatatype)
     #define IME_GLAPI_TEXTURE_BIND(name) void name(gl_id id, uint32 bindingpoint)
     #define IME_GLAPI_TEXTURE_RESET(name) void name(TextureProperties properties, byte* src, gstextureformat srcformat, gsdatatype srcdatatype)
+    #define IME_GLAPI_TEXTURE_CLEAR(name) void name(IME::byte* clearvalue, gl_id texture)
+
 
     typedef IME_GLAPI_INIT(glapi_init);
 
@@ -227,7 +233,8 @@ namespace IME {
     typedef IME_GLAPI_FBO_CREATE_TEXTURE_ATTACHMENT(glapi_fbo_create_texture_attachment);
     typedef IME_GLAPI_FBO_CREATE_RBO_ATTACHMENT(glapi_fbo_create_rbo_attachment);
     typedef IME_GLAPI_FBO_RESIZE(glapi_fbo_resize);
-    typedef IME_GLAPI_FBO_DELETE(glapi_rbo_delete);
+    typedef IME_GLAPI_FBO_DELETE(glapi_fbo_delete);
+    typedef IME_GLAPI_FBO_READ_PIXELS(glapi_fbo_read_pixels);
 
     //shaders
     typedef IME_GLAPI_SHADER_CREATE(glapi_shader_create);
@@ -241,6 +248,8 @@ namespace IME {
     typedef IME_GLAPI_TEXTURE_CREATE(glapi_texture_create);
     typedef IME_GLAPI_TEXTURE_BIND(glapi_texture_bind);
     typedef IME_GLAPI_TEXTURE_RESET(glapi_texture_reset);
+    typedef IME_GLAPI_TEXTURE_CLEAR(glapi_texture_clear);
+
 
     //drawing
     typedef IME_GLAPI_DRAW_ARRAY(glapi_draw_array);

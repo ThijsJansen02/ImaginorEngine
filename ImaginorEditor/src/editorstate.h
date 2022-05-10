@@ -27,6 +27,7 @@ namespace IME {
 
         Assets::FrameBuffer* sceneframebuffer;
         Assets::Texture* colorbuffer;
+        Assets::Texture* idbuffer;
 
         UI::Layer uilayer;
 
@@ -34,6 +35,8 @@ namespace IME {
         gl_id quadshader;
         gl_id fontshader;
         Assets::Font* textfont;
+
+        Scene::Entity selectedentity = {0xFFFFFFFF};
     };  
 
 }

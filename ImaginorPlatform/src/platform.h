@@ -289,6 +289,9 @@ namespace IME {
         glapi_fbo_create_texture_attachment* fbo_createtextureattachment;
         glapi_fbo_create_rbo_attachment* fbo_createrenderbufferattachment;
         glapi_fbo_resize* fbo_resize;
+        glapi_fbo_delete* fbo_delete;
+        glapi_fbo_read_pixels* fbo_readpixels;
+        
 
         //ubos
         glapi_ubo_create* createubo;
@@ -304,6 +307,7 @@ namespace IME {
         glapi_texture_create* texture_create;
         glapi_texture_bind* texture_bind;
         glapi_texture_reset* texture_reset;
+        glapi_texture_clear* texture_clear;
 
         //setup
         glapi_clear* clear;

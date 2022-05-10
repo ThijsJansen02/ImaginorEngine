@@ -43,7 +43,8 @@ namespace IME::UI {
         INPUTFIELD,
         PARAGRAPH,
         IMAGE,
-        DOCKINGSPACE
+        DOCKINGSPACE,
+        DIV
     };
 
     struct ElementPtr {
@@ -55,8 +56,11 @@ namespace IME::UI {
         return el1.data == el2.data;
     }
 
-    #define ON_MOUSE_CLICK_EVENT(name) UI::eventresult name(UI::ElementPtr element, Event e, UI::Layer* uilayer, const PlatformInterface& platform)
+    #define ON_MOUSE_CLICK_EVENT(name) UI::eventresult name(UI::ElementPtr element, vec2f relativemousepos, Event e, UI::Layer* uilayer, const PlatformInterface& platform)
     typedef ON_MOUSE_CLICK_EVENT(on_mouse_click);
+
+    #define ON_INPUT(name) UI::eventresult name(UI::ElementPtr element, IME::Event e, UI::Layer* uilayer, const IME::PlatformInterface& platform)
+    typedef ON_INPUT(on_input);
 
     #define ON_RESIZE_EVENT(name) UI::eventresult name(UI::ElementPtr element, vec2f newsize, UI::Layer* uilayer, const PlatformInterface& platform)
     typedef ON_RESIZE_EVENT(on_resize);
@@ -183,6 +187,12 @@ namespace IME::UI {
         bool32 isdocked = false;
     };
 
+    struct Div {
+        ElementParameters parameters;
+
+        Arraylist<ElementPtr> children;
+    };
+
     struct Image {
         ElementParameters parameters;
 
@@ -202,6 +212,8 @@ namespace IME::UI {
       
         bool32 recievesinput = false;
 
+        on_input* oninput = nullptr;
+        
         vec4f textcolor;
         real32 textsize;
 
@@ -246,6 +258,8 @@ namespace IME::UI {
         ElementPtr editedelement = {0, NONE};
         ElementPtr focussedinput = {0, NONE};
 
+        ElementPtr focussedwindow;
+
         Assets::Library* assets;
         PlatformInterface* platform;
 
@@ -255,6 +269,7 @@ namespace IME::UI {
     };
 
 
+    ElementPtr addDiv(ElementPtr parent, Layer* uilayer);
     ElementPtr addWindowToLayer(Region windowregion, gl_id shader, const char* title, const PlatformInterface& platform, Layer* layer, uint32 flags);
     ElementPtr addParagraph(const char* text, ElementPtr parent, Layer* uilayer);
     ElementPtr addInputField(const char* initialtext, ElementPtr parent, Layer* uilayer);
@@ -265,13 +280,18 @@ namespace IME::UI {
     ElementPtr undockWindow(ElementPtr window, UI::Layer* uilayer); 
 
     void destroyElement(ElementPtr el, Layer* layer);
+    void destroyChildren(ElementPtr el, Layer* layer);
 
     bool32 addOnClickEventHandler(ElementPtr element, on_mouse_click* handler, Layer* uilayer);
     bool32 addOnResizeEventHandler(ElementPtr element, on_resize* handler, Layer* uilayer);
+    bool32 addOnInputEventHandler(ElementPtr element, on_input* handleer, Layer* uilayer);
+
     Region getContentRegion(ElementPtr element);
 
     void addTag(ElementPtr element, const char* tag, Layer* layer);
     ElementPtr getElementByTag(const char* tag, Layer* layer);
+
+    Region calculateElementParameters(ElementPtr el, Layer* layer);
 
     Layer createLayer(gl_id composingshader, PlatformInterface* platform, Assets::Font* basefont, Assets::Library* assets);
     bool32 propagateEventToLayer(Event e, Layer* layer, const PlatformInterface& platform);
